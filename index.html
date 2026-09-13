@@ -851,6 +851,8 @@ function Ordini({ctx}){
   const [q, setQ] = useState("");
   const [filtroStato, setFiltroStato] = useState("");
   const [del, setDel] = useState(null);
+  const [selO, setSelO] = useState([]);
+  const [delSelO, setDelSelO] = useState(false);
 
   useEffect(() => { localStorage.setItem(LS_PREFIX+"openOrd", JSON.stringify(openIds)); }, [openIds]);
   useEffect(() => { setOpenIds(ids => ids.filter(id => ordini.some(o => o.id === id))); }, [ordini.length]);
@@ -893,6 +895,11 @@ function Ordini({ctx}){
             <div className="search"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Cerca per titolo, numero, fornitore…"/></div>
             <Sel value={filtroStato} onChange={setFiltroStato} options={STATI} placeholder="Tutti gli stati" style={{width:150}}/>
             <div className="spacer"/>
+            {selO.length > 0 && <>
+              <span className="tag b">{selO.length} selezionati</span>
+              <button className="btn sm" onClick={()=>setSelO([])}>Deseleziona</button>
+              <button className="btn sm danger" onClick={()=>setDelSelO(true)}>Elimina selezionati</button>
+            </>}
             <button className="btn" onClick={()=>esportaElencoOrdini(ordini)}>Esporta elenco</button>
           </div>
           <div className="card">
@@ -900,10 +907,21 @@ function Ordini({ctx}){
               ? <Empty action={<button className="btn gold" onClick={creaOrdine}>Crea il primo ordine</button>}>Nessun ordine da mostrare.</Empty>
               : <div className="scroll"><table>
                 <thead><tr>
+                  <th className="t-center" style={{width:34}} onClick={e=>e.stopPropagation()}>
+                    <input type="checkbox" style={{width:"auto"}} title="Seleziona tutti"
+                      checked={lista.length > 0 && lista.every(o => selO.includes(o.id))}
+                      onChange={e=>setSelO(e.target.checked
+                        ? [...new Set([...selO, ...lista.map(o => o.id)])]
+                        : selO.filter(id => !lista.some(o => o.id === id)))}/>
+                  </th>
                   <th>Numero</th><th>Titolo</th><th>Fornitore</th><th>Evento</th><th>Data</th><th>Consegna</th>
                   <th>Stato</th><th className="t-right">Righe</th><th className="t-right">Imponibile</th><th className="t-right">Totale</th><th></th>
                 </tr></thead>
-                <tbody>{lista.map(o => { const t = ordineTot(o); return <tr key={o.id} style={{cursor:"pointer"}} onClick={()=>open(o.id)}>
+                <tbody>{lista.map(o => { const t = ordineTot(o); return <tr key={o.id} style={{cursor:"pointer", ...(selO.includes(o.id)?{background:"var(--gold-soft)"}:{})}} onClick={()=>open(o.id)}>
+                  <td className="t-center" onClick={e=>e.stopPropagation()}>
+                    <input type="checkbox" style={{width:"auto"}} checked={selO.includes(o.id)}
+                      onChange={e=>setSelO(e.target.checked ? [...selO, o.id] : selO.filter(id => id !== o.id))}/>
+                  </td>
                   <td className="num">{o.numero}</td>
                   <td><strong>{o.titolo || "—"}</strong></td>
                   <td>{o.fornitore || "—"}</td>
@@ -926,6 +944,10 @@ function Ordini({ctx}){
 
     {del && <Confirm text={`Elimini l'ordine "${del.titolo || del.numero}" e tutte le sue righe?`}
       onClose={()=>setDel(null)} onYes={()=>{ setOrdini(l => l.filter(o => o.id !== del.id)); close(del.id); toast("Ordine eliminato"); }}/>}
+    {delSelO && <Confirm yesLabel={"Elimina "+selO.length+" ordini"}
+      text={`Elimini ${selO.length} ordini con tutte le loro righe?`}
+      onClose={()=>setDelSelO(false)}
+      onYes={()=>{ setOrdini(l => l.filter(o => !selO.includes(o.id))); selO.forEach(close); toast(selO.length+" ordini eliminati"); setSelO([]); }}/>}
   </>;
 }
 
@@ -933,6 +955,8 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
   const {articoli, fornNomi, ubicazioni, setArticoli, setMovimenti, artById, toast} = ctx;
   const [imp, setImp] = useState(null);
   const [ricevi, setRicevi] = useState(false);
+  const [selR, setSelR] = useState([]);
+  const [delSelR, setDelSelR] = useState(false);
   const t = ordineTot(ordine);
   const righe = ordine.righe || [];
   const setRighe = f => patch({righe: typeof f === "function" ? f(righe) : f});
@@ -996,6 +1020,11 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
         <h3>Righe dell'ordine</h3>
         <span className="muted small">{t.righe} righe · {num(t.pezzi,0)} pezzi</span>
         <div className="spacer"/>
+        {selR.length > 0 && <>
+          <span className="tag b">{selR.length} selezionate</span>
+          <button className="btn sm" onClick={()=>setSelR([])}>Deseleziona</button>
+          <button className="btn sm danger" onClick={()=>setDelSelR(true)}>Elimina selezionate</button>
+        </>}
         <button className="btn sm" onClick={addVuota}>+ Riga</button>
         <button className="btn sm" onClick={()=>setImp("ordine")}>Importa Excel</button>
         <button className="btn sm" onClick={templateOrdine}>Modello</button>
@@ -1020,12 +1049,21 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
           </Empty>
         : <div className="scroll"><table>
             <thead><tr>
+              <th className="t-center" style={{width:34}}>
+                <input type="checkbox" style={{width:"auto"}} title="Seleziona tutte"
+                  checked={righe.length > 0 && righe.every(r => selR.includes(r.id))}
+                  onChange={e=>setSelR(e.target.checked ? righe.map(r => r.id) : [])}/>
+              </th>
               <th style={{minWidth:230}}>Articolo</th><th style={{minWidth:120}}>Fornitore</th><th style={{width:62}}>UM</th>
               <th className="t-right" style={{width:104}}>Importo unit.</th><th className="t-right" style={{width:74}}>IVA</th>
               <th className="t-right" style={{width:88}}>Quantità</th><th className="t-right" style={{width:104}}>Costo unit.</th>
               <th className="t-right" style={{width:112}}>Costo totale</th><th style={{minWidth:120}}>Note</th><th style={{width:58}}></th>
             </tr></thead>
-            <tbody>{righe.map((r,i) => { const rt = rigaTot(r); return <tr key={r.id}>
+            <tbody>{righe.map((r,i) => { const rt = rigaTot(r); return <tr key={r.id} style={selR.includes(r.id)?{background:"var(--gold-soft)"}:null}>
+              <td className="t-center">
+                <input type="checkbox" style={{width:"auto"}} checked={selR.includes(r.id)}
+                  onChange={e=>setSelR(e.target.checked ? [...selR, r.id] : selR.filter(id => id !== r.id))}/>
+              </td>
               <td>
                 <input className="cellinput" list={"art-"+ordine.id} value={r.descrizione || ""}
                   onChange={e=>{
@@ -1049,13 +1087,13 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
               </td>
             </tr>; })}</tbody>
             <tfoot><tr>
-              <td colSpan={6}>Totali</td>
+              <td colSpan={7}>Totali</td>
               <td className="t-right">Imponibile</td>
               <td className="t-right num">{eur(t.imponibile)}</td><td colSpan={2}></td>
             </tr><tr>
-              <td colSpan={6}></td><td className="t-right">IVA</td><td className="t-right num">{eur(t.iva)}</td><td colSpan={2}></td>
+              <td colSpan={7}></td><td className="t-right">IVA</td><td className="t-right num">{eur(t.iva)}</td><td colSpan={2}></td>
             </tr><tr>
-              <td colSpan={6}></td><td className="t-right">Totale</td>
+              <td colSpan={7}></td><td className="t-right">Totale</td>
               <td className="t-right num" style={{fontSize:15}}>{eur(t.totale)}</td><td colSpan={2}></td>
             </tr></tfoot>
           </table></div>}
@@ -1067,6 +1105,10 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
       <button className="btn" onClick={onClose}>Chiudi scheda</button>
     </div>
 
+    {delSelR && <Confirm yesLabel={"Elimina "+selR.length+" righe"}
+      text={`Elimini ${selR.length} righe da questo ordine?`}
+      onClose={()=>setDelSelR(false)}
+      onYes={()=>{ setRighe(rs => rs.filter(r => !selR.includes(r.id))); toast(selR.length+" righe eliminate"); setSelR([]); }}/>}
     {imp && <ImportModal ctx={ctx} onClose={()=>setImp(null)} onDone={(nuove, modo) => {
       setRighe(rs => modo === "replace" ? nuove : [...rs, ...nuove]);
       setImp(null);
@@ -1249,12 +1291,15 @@ function Articoli({ctx}){
   const [fCat, setFCat] = useState("");
   const [fForn, setFForn] = useState("");
   const [del, setDel] = useState(null);
+  const [delSel, setDelSel] = useState(false);
+  const [sel, setSel] = useState([]);
   const [imp, setImp] = useState(false);
   const fileRef = useRef(null);
 
   const lista = articoli.filter(a => byText(q, a.descrizione, a.codice, a.fornitore, a.categoria)
     && (!fCat || a.categoria === fCat) && (!fForn || a.fornitore === fForn));
 
+  const tuttiSel = lista.length > 0 && lista.every(a => sel.includes(a.id));
   const set = (id, p) => setArticoli(l => l.map(a => a.id === id ? {...a, ...p} : a));
   const aggiungi = () => {
     const a = {id:uid(), codice:"", descrizione:"Nuovo articolo", categoria:fCat||"", fornitore:fForn||"", um:"pz",
@@ -1316,6 +1361,11 @@ function Articoli({ctx}){
         <Sel value={fCat} onChange={setFCat} options={categorie} placeholder="Tutte le categorie" style={{width:180}}/>
         <Sel value={fForn} onChange={setFForn} options={fornNomi} placeholder="Tutti i fornitori" style={{width:180}}/>
         <div className="spacer"/>
+        {sel.length > 0 && <>
+          <span className="tag b">{sel.length} selezionati</span>
+          <button className="btn sm" onClick={()=>setSel([])}>Deseleziona</button>
+          <button className="btn sm danger" onClick={()=>setDelSel(true)}>Elimina selezionati</button>
+        </>}
         <span className="small muted">{lista.length} risultati</span>
       </div>
 
@@ -1326,6 +1376,12 @@ function Articoli({ctx}){
             </Empty>
           : <div className="scroll"><table>
             <thead><tr>
+              <th className="t-center" style={{width:34}}>
+                <input type="checkbox" style={{width:"auto"}} checked={tuttiSel} title="Seleziona tutti"
+                  onChange={e=>setSel(e.target.checked
+                    ? [...new Set([...sel, ...lista.map(a => a.id)])]
+                    : sel.filter(id => !lista.some(a => a.id === id)))}/>
+              </th>
               <th style={{width:88}}>Codice</th><th style={{minWidth:220}}>Articolo</th><th style={{minWidth:130}}>Categoria</th>
               <th style={{minWidth:130}}>Fornitore</th><th style={{width:58}}>UM</th>
               <th className="t-right" style={{width:100}}>Imp. unit.</th><th className="t-right" style={{width:66}}>IVA</th>
@@ -1335,7 +1391,11 @@ function Articoli({ctx}){
               <th className="t-right" style={{width:92}}>Pr. vendita</th><th className="t-right" style={{width:78}}>Scorta min</th>
               <th className="t-center" style={{width:64}}>Cespite</th><th style={{width:40}}></th>
             </tr></thead>
-            <tbody>{lista.map(a => <tr key={a.id}>
+            <tbody>{lista.map(a => <tr key={a.id} style={sel.includes(a.id)?{background:"var(--gold-soft)"}:null}>
+              <td className="t-center">
+                <input type="checkbox" style={{width:"auto"}} checked={sel.includes(a.id)}
+                  onChange={e=>setSel(e.target.checked ? [...sel, a.id] : sel.filter(id => id !== a.id))}/>
+              </td>
               <td><input className="cellinput" value={a.codice||""} onChange={e=>set(a.id,{codice:e.target.value})}/></td>
               <td><input className="cellinput" value={a.descrizione||""} onChange={e=>set(a.id,{descrizione:e.target.value})}/></td>
               <td><input className="cellinput" list="cat-list" value={a.categoria||""} onChange={e=>set(a.id,{categoria:e.target.value})}/></td>
@@ -1363,7 +1423,11 @@ function Articoli({ctx}){
       <datalist id="um-list">{UM_LIST.map(u => <option key={u} value={u}/>)}</datalist>
     </div>
     {del && <Confirm text={`Elimini "${del.descrizione}" dall'anagrafica?`} onClose={()=>setDel(null)}
-      onYes={()=>{ setArticoli(l => l.filter(x => x.id !== del.id)); toast("Articolo eliminato"); }}/>}
+      onYes={()=>{ setArticoli(l => l.filter(x => x.id !== del.id)); setSel(v => v.filter(id => id !== del.id)); toast("Articolo eliminato"); }}/>}
+    {delSel && <Confirm yesLabel={"Elimina "+sel.length+" articoli"}
+      text={`Elimini ${sel.length} articoli dall'anagrafica? Gli ordini già compilati restano, ma le righe perdono il collegamento.`}
+      onClose={()=>setDelSel(false)}
+      onYes={()=>{ setArticoli(l => l.filter(a => !sel.includes(a.id))); toast(sel.length+" articoli eliminati"); setSel([]); }}/>}
   </>;
 }
 
