@@ -1,0 +1,1966 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Master · Ordini, Magazzino e Marginalità</title>
+<meta name="theme-color" content="#12202f">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%2312202f'/><text y='70' x='50' text-anchor='middle' font-size='58' font-family='Georgia' fill='%23d9a227'>M</text></svg>">
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --ink:#12202f; --ink-2:#1c3047; --ink-3:#2b4763;
+  --paper:#f2f1ec; --card:#ffffff; --line:#d9d7ce; --line-soft:#e8e6df;
+  --text:#1b2430; --muted:#6b7683;
+  --gold:#b8811b; --gold-soft:#f6ecd6;
+  --green:#2f7a55; --green-soft:#e6f2ea;
+  --red:#b3372e; --red-soft:#fbeae8;
+  --blue:#31607f;
+  --r:6px;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--paper); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:14px; line-height:1.45; -webkit-font-smoothing:antialiased;
+}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--blue)}
+.num{font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:13px}
+
+/* ---------- shell ---------- */
+.shell{display:flex;min-height:100vh}
+.side{
+  width:214px;flex:0 0 214px;background:var(--ink);color:#cfd8e2;
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;
+}
+.brand{padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.09)}
+.brand h1{margin:0;font:600 21px/1 Georgia,"Times New Roman",serif;letter-spacing:.04em;color:#fff}
+.brand .sub{display:block;margin-top:5px;font-size:11.5px;color:#8ea1b4}
+.nav{padding:10px 8px;flex:1;overflow:auto}
+.nav button{
+  display:flex;align-items:center;gap:9px;width:100%;text-align:left;
+  background:none;border:0;color:#c3cede;padding:8px 10px;border-radius:var(--r);
+  cursor:pointer;font-size:13.5px;margin-bottom:2px;
+}
+.nav button:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav button.on{background:var(--gold);color:#1b1405;font-weight:600}
+.nav .ico{width:18px;text-align:center;font-size:14px;opacity:.9}
+.sidefoot{padding:10px 14px;border-top:1px solid rgba(255,255,255,.09);font-size:11px;color:#8ea1b4}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.main{flex:1;min-width:0;display:flex;flex-direction:column}
+.topbar{
+  background:var(--card);border-bottom:1px solid var(--line);
+  padding:13px 22px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  position:sticky;top:0;z-index:30;
+}
+.topbar h2{margin:0;font:600 17px/1.2 Georgia,serif}
+.topbar .hint{color:var(--muted);font-size:12.5px}
+.spacer{flex:1}
+.wrap{padding:20px 22px 60px;max-width:1500px;width:100%}
+
+/* ---------- buttons ---------- */
+.btn{
+  border:1px solid var(--line);background:var(--card);border-radius:var(--r);
+  padding:6px 11px;cursor:pointer;font-size:13px;display:inline-flex;align-items:center;gap:6px;
+}
+.btn:hover{border-color:#b9b5a8;background:#fbfaf7}
+.btn:active{transform:translateY(1px)}
+.btn.pri{background:var(--ink);border-color:var(--ink);color:#fff}
+.btn.pri:hover{background:var(--ink-2);border-color:var(--ink-2)}
+.btn.gold{background:var(--gold);border-color:var(--gold);color:#1b1405;font-weight:600}
+.btn.gold:hover{background:#a5730f}
+.btn.danger{color:var(--red);border-color:#e2c4c0}
+.btn.danger:hover{background:var(--red-soft)}
+.btn.sm{padding:3px 8px;font-size:12px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.icobtn{border:0;background:none;cursor:pointer;padding:3px 5px;border-radius:4px;color:var(--muted);font-size:13px}
+.icobtn:hover{background:var(--line-soft);color:var(--text)}
+.icobtn.del:hover{background:var(--red-soft);color:var(--red)}
+
+/* ---------- cards / tables ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:8px}
+.card>header{padding:11px 14px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card>header h3{margin:0;font:600 14px/1.3 inherit}
+.card .body{padding:14px}
+.grid{display:grid;gap:14px}
+table{width:100%;border-collapse:collapse}
+th{
+  text-align:left;font-size:11.5px;font-weight:600;color:var(--muted);
+  padding:7px 9px;border-bottom:1px solid var(--line);white-space:nowrap;background:#faf9f6;
+  position:sticky;top:0;z-index:2;
+}
+td{padding:6px 9px;border-bottom:1px solid var(--line-soft);vertical-align:middle}
+tbody tr:hover td{background:#fcfbf8}
+.t-right{text-align:right}
+.t-center{text-align:center}
+.scroll{overflow:auto;max-height:70vh}
+tfoot td{background:#f7f6f2;font-weight:600;border-top:1px solid var(--line);border-bottom:0;position:sticky;bottom:0}
+
+/* ---------- fields ---------- */
+.f{display:flex;flex-direction:column;gap:4px}
+.f label{font-size:11.5px;color:var(--muted);font-weight:600}
+input[type=text],input[type=number],input[type=date],select,textarea{
+  border:1px solid var(--line);border-radius:var(--r);padding:6px 8px;background:#fff;width:100%;
+}
+input:focus,select:focus,textarea:focus{outline:2px solid #c9d7e4;outline-offset:-1px;border-color:var(--ink-3)}
+textarea{resize:vertical;min-height:62px}
+.cellinput{border:1px solid transparent;background:transparent;padding:3px 5px;border-radius:4px;width:100%}
+.cellinput:hover{border-color:var(--line)}
+.cellinput:focus{background:#fff;border-color:var(--ink-3)}
+.cellinput.n{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:13px}
+.formgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+
+/* ---------- misc ---------- */
+.tag{display:inline-block;padding:1.5px 7px;border-radius:99px;font-size:11px;border:1px solid var(--line);background:#fafaf7;white-space:nowrap}
+.tag.b{background:var(--gold-soft);border-color:#e6d3a8;color:#7a5607}
+.tag.g{background:var(--green-soft);border-color:#bfdccb;color:#1f5a3c}
+.tag.r{background:var(--red-soft);border-color:#eec9c5;color:#8f2a22}
+.tag.n{background:#eef2f6;border-color:#cfdae4;color:#2c4a63}
+.pos{color:var(--green);font-weight:600}
+.neg{color:var(--red);font-weight:600}
+.muted{color:var(--muted)}
+.small{font-size:12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(168px,1fr));gap:12px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:13px 14px}
+.kpi .lab{font-size:11.5px;color:var(--muted)}
+.kpi .val{font:600 23px/1.25 Georgia,serif;font-variant-numeric:tabular-nums;margin-top:3px}
+.kpi .sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+.kpi.acc{border-left:3px solid var(--gold)}
+.bar{height:6px;background:var(--line-soft);border-radius:99px;overflow:hidden;min-width:54px}
+.bar i{display:block;height:100%;background:var(--green)}
+.bar i.low{background:var(--gold)}
+.bar i.bad{background:var(--red)}
+.empty{padding:36px 18px;text-align:center;color:var(--muted)}
+.empty p{margin:0 0 12px}
+.toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.search{position:relative;min-width:190px;flex:1;max-width:340px}
+.search input{padding-left:28px}
+.search::before{content:"⌕";position:absolute;left:9px;top:5px;color:var(--muted);font-size:15px}
+
+/* order tabs */
+.otabs{display:flex;gap:6px;overflow:auto;padding:8px 22px 0;background:var(--card);border-bottom:1px solid var(--line)}
+.otab{border:1px solid var(--line);border-bottom:0;background:#f7f6f2;border-radius:7px 7px 0 0;padding:6px 10px;cursor:pointer;font-size:12.5px;white-space:nowrap;display:flex;gap:8px;align-items:center;color:var(--muted)}
+.otab.on{background:var(--card);color:var(--text);font-weight:600;box-shadow:0 1px 0 #fff}
+.otab .x{opacity:.5}
+.otab .x:hover{opacity:1;color:var(--red)}
+
+/* modal */
+.ovl{position:fixed;inset:0;background:rgba(18,32,47,.5);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:100;overflow:auto}
+.modal{background:var(--card);border-radius:10px;max-width:720px;width:100%;box-shadow:0 18px 50px rgba(0,0,0,.28)}
+.modal.lg{max-width:980px}
+.modal>header{padding:14px 18px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center}
+.modal>header h3{margin:0;font:600 16px/1.2 Georgia,serif}
+.modal .body{padding:18px}
+.modal>footer{padding:12px 18px;border-top:1px solid var(--line-soft);display:flex;gap:8px;justify-content:flex-end}
+
+/* toast */
+.toasts{position:fixed;bottom:18px;right:18px;display:flex;flex-direction:column;gap:8px;z-index:200}
+.toast{background:var(--ink);color:#fff;padding:9px 14px;border-radius:var(--r);font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:330px}
+.toast.err{background:var(--red)}
+.toast.ok{background:var(--green)}
+
+/* mobile */
+.mobnav{display:none}
+@media(max-width:860px){
+  .side{display:none}
+  .shell{flex-direction:column}
+  .wrap{padding:14px 12px 80px}
+  .topbar{padding:11px 12px}
+  .otabs{padding:8px 12px 0}
+  .mobnav{
+    display:flex;position:fixed;bottom:0;left:0;right:0;background:var(--ink);z-index:50;
+    overflow:auto;padding:6px 6px calc(6px + env(safe-area-inset-bottom));gap:4px;
+  }
+  .mobnav button{flex:1 0 auto;background:none;border:0;color:#bcc9d8;font-size:10.5px;padding:6px 8px;border-radius:6px;display:flex;flex-direction:column;align-items:center;gap:3px}
+  .mobnav button.on{background:var(--gold);color:#1b1405;font-weight:600}
+  .mobnav .ico{font-size:15px}
+  .formgrid{grid-template-columns:1fr 1fr}
+}
+@media print{.side,.topbar,.mobnav,.toolbar,.otabs{display:none}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const {useState,useEffect,useMemo,useRef,useCallback} = React;
+
+/* ============================================================
+   CONFIGURAZIONE FIREBASE  —  incolla qui la config del progetto
+   Finché projectId è vuoto l'app lavora in locale (localStorage).
+   ============================================================ */
+const FIREBASE_CONFIG = {
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
+};
+const DB_ROOT = "master";     // collection Firestore
+const LS_PREFIX = "master_v1_";
+
+/* ============================ utils ============================ */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const n = v => { const x = typeof v === "number" ? v : parseFloat(String(v ?? "").replace(/\s/g,"").replace(",", ".")); return isFinite(x) ? x : 0; };
+const eur = (v,d=2) => n(v).toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d}) + " €";
+const num = (v,d=2) => n(v).toLocaleString("it-IT",{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct = v => (n(v)*100).toLocaleString("it-IT",{minimumFractionDigits:1,maximumFractionDigits:1}) + "%";
+const today = () => new Date().toISOString().slice(0,10);
+const dmy = s => s ? String(s).slice(0,10).split("-").reverse().join("/") : "";
+const norm = s => String(s ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+const byText = (q, ...fields) => { const k = norm(q); return !k || fields.some(f => norm(f).includes(k)); };
+const clone = o => JSON.parse(JSON.stringify(o));
+const download = (blob, name) => { const u = URL.createObjectURL(blob); const a = document.createElement("a"); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u),1500); };
+const slug = s => norm(s).replace(/ /g,"_").slice(0,48) || "file";
+
+/* IVA: accetta 22, 0.22, "22%" */
+const parseIva = v => { let x = n(v); if (x > 1) x = x/100; return x < 0 ? 0 : x; };
+
+/* costo ivato di un articolo (per unità d'acquisto) e per unità base */
+const costoUn = a => n(a.prezzo) * (1 + parseIva(a.iva));
+const contenuto = a => (n(a.contenuto) > 0 ? n(a.contenuto) : 1);
+const costoBase = a => costoUn(a) / contenuto(a);
+
+/* ============================ storage ============================ */
+const COLLS = ["articoli","fornitori","ordini","prodotti","ubicazioni","movimenti","config"];
+
+const Store = {
+  mode: "local", db: null, unsubs: [], last: {},
+  init(){
+    try{
+      if (FIREBASE_CONFIG.projectId && window.firebase){
+        firebase.initializeApp(FIREBASE_CONFIG);
+        this.db = firebase.firestore();
+        this.mode = "cloud";
+      }
+    }catch(e){ console.warn("Firebase off:", e); this.mode = "local"; }
+    return this.mode;
+  },
+  readLocal(key, def){
+    try{ const r = localStorage.getItem(LS_PREFIX+key); return r ? JSON.parse(r) : def; }catch(e){ return def; }
+  },
+  writeLocal(key, val){ try{ localStorage.setItem(LS_PREFIX+key, JSON.stringify(val)); }catch(e){} },
+  subscribe(key, cb){
+    cb(this.readLocal(key, key==="config" ? {} : []));
+    if (this.mode !== "cloud") return () => {};
+    const ref = this.db.collection(DB_ROOT).doc(key);
+    const un = ref.onSnapshot(snap => {
+      const d = snap.data();
+      if (!d) return;
+      const val = key==="config" ? (d.value || {}) : (d.items || []);
+      const s = JSON.stringify(val);
+      if (s === this.last[key]) return;
+      this.last[key] = s;
+      this.writeLocal(key, val);
+      cb(val);
+    }, err => console.warn("snapshot", key, err));
+    this.unsubs.push(un);
+    return un;
+  },
+  save(key, val){
+    this.writeLocal(key, val);
+    if (this.mode !== "cloud") return Promise.resolve();
+    this.last[key] = JSON.stringify(val);
+    const payload = key==="config" ? {value: val} : {items: val};
+    return this.db.collection(DB_ROOT).doc(key).set({...payload, ts: Date.now()})
+      .catch(e => { console.warn("save", key, e); throw e; });
+  }
+};
+
+function useColl(key, def){
+  const [data, setData] = useState(() => Store.readLocal(key, def));
+  useEffect(() => { const un = Store.subscribe(key, setData); return () => { try{ un && un(); }catch(e){} }; }, [key]);
+  const update = useCallback(next => {
+    setData(prev => {
+      const val = typeof next === "function" ? next(prev) : next;
+      Store.save(key, val);
+      return val;
+    });
+  }, [key]);
+  return [data, update];
+}
+
+/* ============================ toast ============================ */
+const ToastCtx = React.createContext(()=>{});
+function useToast(){ return React.useContext(ToastCtx); }
+function Toasts({items}){
+  return <div className="toasts">{items.map(t => <div key={t.id} className={"toast "+(t.kind||"")}>{t.msg}</div>)}</div>;
+}
+
+/* ============================ UI atoms ============================ */
+function Field({label, children, style}){
+  return <div className="f" style={style}><label>{label}</label>{children}</div>;
+}
+function Txt({value, onChange, ...p}){
+  return <input type="text" value={value ?? ""} onChange={e=>onChange(e.target.value)} {...p} />;
+}
+function Num({value, onChange, step="0.01", ...p}){
+  const [buf, setBuf] = useState(null);
+  return <input type="text" inputMode="decimal" className={p.className || ""} style={p.style}
+    value={buf !== null ? buf : (value === "" || value === null || value === undefined ? "" : String(value).replace(".", ","))}
+    onFocus={e=>setBuf(value===0?"":String(value ?? "").replace(".", ","))}
+    onChange={e=>setBuf(e.target.value)}
+    onBlur={e=>{ onChange(e.target.value === "" ? 0 : n(e.target.value)); setBuf(null); }}
+    placeholder={p.placeholder} />;
+}
+function Sel({value, onChange, options, placeholder, ...p}){
+  return <select value={value ?? ""} onChange={e=>onChange(e.target.value)} {...p}>
+    {placeholder !== undefined && <option value="">{placeholder}</option>}
+    {options.map(o => typeof o === "string"
+      ? <option key={o} value={o}>{o}</option>
+      : <option key={o.v} value={o.v}>{o.l}</option>)}
+  </select>;
+}
+function Modal({title, onClose, children, footer, lg}){
+  useEffect(()=>{ const h = e => e.key === "Escape" && onClose(); window.addEventListener("keydown",h); return ()=>window.removeEventListener("keydown",h); },[onClose]);
+  return <div className="ovl" onMouseDown={e=>{ if(e.target === e.currentTarget) onClose(); }}>
+    <div className={"modal"+(lg?" lg":"")} onMouseDown={e=>e.stopPropagation()}>
+      <header><h3>{title}</h3><div className="spacer"/><button className="icobtn" onClick={onClose}>✕</button></header>
+      <div className="body">{children}</div>
+      {footer && <footer>{footer}</footer>}
+    </div>
+  </div>;
+}
+function Confirm({text, onYes, onClose, yesLabel="Elimina"}){
+  return <Modal title="Confermi?" onClose={onClose} footer={<>
+    <button className="btn" onClick={onClose}>Annulla</button>
+    <button className="btn danger" onClick={()=>{onYes();onClose();}}>{yesLabel}</button>
+  </>}><p style={{margin:0}}>{text}</p></Modal>;
+}
+function Empty({children, action}){
+  return <div className="empty"><p>{children}</p>{action}</div>;
+}
+function MarginBar({v}){
+  const p = Math.max(0, Math.min(1, n(v)));
+  const cls = v < 0.2 ? "bad" : v < 0.4 ? "low" : "";
+  return <div className="bar"><i className={cls} style={{width:(p*100)+"%"}}/></div>;
+}
+
+/* ============================ Excel: import generico ============================ */
+const ALIASES = {
+  descrizione: ["tipologia","articolo","descrizione","prodotto","materiale","voce","item","denominazione"],
+  fornitore:   ["fornitore","supplier","venditore"],
+  categoria:   ["categoria","reparto","famiglia","gruppo"],
+  um:          ["um","u m","unita","unita misura","unita di misura","misura"],
+  prezzo:      ["importo unitario","prezzo unitario","prezzo","imponibile","costo unitario netto","importo","prezzo netto","prezzo kg","prezzo l"],
+  iva:         ["iva","aliquota","aliquota iva","iva %"],
+  quantita:    ["quantita","qta","q ta","qty","pezzi","n pezzi","quantita ordine"],
+  contenuto:   ["contenuto","peso cadauno g","volume cadauno l","contenuto unita","formato"],
+  umBase:      ["um base","unita base","um di consumo"],
+  prezzoVendita:["prezzo vendita","pv","prezzo di vendita","vendita"],
+  note:        ["note","nota","commento","osservazioni"],
+  ubicazione:  ["ubicazione","luogo","luogo di stoccaggio","magazzino","posizione","stoccaggio"],
+  giacenza:    ["giacenza","esistenza","quantita a magazzino","stock"],
+  codice:      ["codice","cod","sku","ean"]
+};
+function seqMatch(words, alias){
+  const a = alias.split(" ").filter(Boolean);
+  for (let i = 0; i + a.length <= words.length; i++){
+    let ok = true;
+    for (let j = 0; j < a.length; j++) if (words[i+j] !== a[j]){ ok = false; break; }
+    if (ok) return true;
+  }
+  return false;
+}
+function matchHeader(cell){
+  const w = norm(cell).split(" ").filter(Boolean);
+  if (!w.length) return null;
+  const k = w.join(" ");
+  for (const field in ALIASES) if (ALIASES[field].some(a => k === a || k === a.replace(/ /g,""))) return field;
+  for (const field in ALIASES) if (ALIASES[field].some(a => seqMatch(w, a))) return field;
+  return null;
+}
+/* trova la riga di intestazione ovunque sia nel foglio e mappa le colonne */
+function findTable(rows, required=["descrizione"]){
+  let best = null;
+  for (let r = 0; r < Math.min(rows.length, 40); r++){
+    const row = rows[r] || [];
+    const map = {};
+    row.forEach((c, i) => { const f = matchHeader(c); if (f && map[f] === undefined) map[f] = i; });
+    const score = Object.keys(map).length;
+    if (required.every(f => map[f] !== undefined) && score >= 2 && (!best || score > best.score))
+      best = {headerRow:r, map, score};
+  }
+  return best;
+}
+function readWorkbook(file){
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = e => { try{ res(XLSX.read(new Uint8Array(e.target.result), {type:"array"})); }catch(err){ rej(err); } };
+    fr.onerror = rej;
+    fr.readAsArrayBuffer(file);
+  });
+}
+function sheetRows(wb, sheetName){
+  const ws = wb.Sheets[sheetName || wb.SheetNames[0]];
+  return XLSX.utils.sheet_to_json(ws, {header:1, blankrows:false, defval:null});
+}
+function parseRows(rows){
+  const t = findTable(rows);
+  if (!t) return {error:"Nessuna tabella riconosciuta: serve almeno una colonna ARTICOLO/TIPOLOGIA e una tra FORNITORE, IMPORTO UNITARIO, QUANTITÀ."};
+  const out = [];
+  for (let r = t.headerRow + 1; r < rows.length; r++){
+    const row = rows[r] || [];
+    const get = f => t.map[f] === undefined ? null : row[t.map[f]];
+    const desc = get("descrizione");
+    if (desc === null || desc === undefined || String(desc).trim() === "") continue;
+    if (matchHeader(desc) === "descrizione") continue;      // intestazione ripetuta
+    out.push({
+      descrizione: String(desc).trim(),
+      fornitore: get("fornitore") ? String(get("fornitore")).trim() : "",
+      categoria: get("categoria") ? String(get("categoria")).trim() : "",
+      um: get("um") ? String(get("um")).trim() : "",
+      prezzo: n(get("prezzo")),
+      iva: get("iva") === null ? null : parseIva(get("iva")),
+      quantita: n(get("quantita")),
+      contenuto: n(get("contenuto")),
+      umBase: get("umBase") ? String(get("umBase")).trim() : "",
+      prezzoVendita: n(get("prezzoVendita")),
+      giacenza: n(get("giacenza")),
+      ubicazione: get("ubicazione") ? String(get("ubicazione")).trim() : "",
+      codice: get("codice") ? String(get("codice")).trim() : "",
+      note: get("note") ? String(get("note")).trim() : ""
+    });
+  }
+  return {rows: out, map: t.map, headerRow: t.headerRow};
+}
+
+/* ============================ Excel: export ============================ */
+function aoaToFile(sheets, filename){
+  const wb = XLSX.utils.book_new();
+  sheets.forEach(s => {
+    const ws = XLSX.utils.aoa_to_sheet(s.aoa);
+    ws["!cols"] = (s.cols || []).map(w => ({wch:w}));
+    XLSX.utils.book_append_sheet(wb, ws, s.name.slice(0,31));
+  });
+  XLSX.writeFile(wb, filename);
+}
+const TEMPLATE_HEAD = ["ARTICOLO","FORNITORE","CATEGORIA","UM","IMPORTO UNITARIO","IVA %","QUANTITÀ","NOTE"];
+function templateOrdine(){
+  aoaToFile([{
+    name:"ORDINE",
+    cols:[38,16,16,8,16,8,12,26],
+    aoa:[
+      ["MODELLO ORDINE — compila le righe sotto e reimportalo nell'app"],
+      [],
+      TEMPLATE_HEAD,
+      ["GIN WHITMAN 1L","GHIDONI","Alcolici","pz",7.18,22,40,""],
+      ["TONICA 1L SCHWEPPES","GHIDONI","Bibite","pz",1,22,150,""],
+      ["BICCHIERI 0,4","CONAD","Materiale di consumo","cf",0.08,22,1500,""]
+    ]
+  }], "modello_ordine.xlsx");
+}
+function templateArticoli(){
+  aoaToFile([{
+    name:"ARTICOLI",
+    cols:[14,38,18,18,8,16,8,14,10,16,26],
+    aoa:[
+      ["CODICE","ARTICOLO","CATEGORIA","FORNITORE","UM","IMPORTO UNITARIO","IVA %","CONTENUTO","UM BASE","PREZZO VENDITA","NOTE"],
+      ["ALC001","GIN WHITMAN 1L","Alcolici","GHIDONI","pz",7.18,22,1,"l","","bottiglia da 1 litro"],
+      ["FOOD01","SALSICCIA","Food","CENTRO CARNI","kg",7.9,10,1000,"g","","120 g a panino"]
+    ]
+  }], "modello_articoli.xlsx");
+}
+function templateMagazzino(){
+  aoaToFile([{
+    name:"GIACENZE",
+    cols:[38,18,14,10,16,26],
+    aoa:[
+      ["ARTICOLO","UBICAZIONE","GIACENZA","UM","IMPORTO UNITARIO","NOTE"],
+      ["GIN WHITMAN 1L","Magazzino bar",12,"pz",7.18,"scorta iniziale"]
+    ]
+  }], "modello_magazzino.xlsx");
+}
+
+/* ============================ PDF ============================ */
+function pdfDoc(orientation="p"){
+  const {jsPDF} = window.jspdf;
+  return new jsPDF({orientation, unit:"mm", format:"a4"});
+}
+function pdfHead(doc, titolo, sottotitolo, meta){
+  doc.setFillColor(18,32,47); doc.rect(0,0,doc.internal.pageSize.getWidth(),22,"F");
+  doc.setTextColor(255,255,255); doc.setFont("times","bold"); doc.setFontSize(15);
+  doc.text(titolo, 14, 10);
+  doc.setFont("helvetica","normal"); doc.setFontSize(9); doc.setTextColor(200,210,220);
+  if (sottotitolo) doc.text(sottotitolo, 14, 16);
+  doc.setTextColor(30,30,30);
+  let y = 30;
+  if (meta && meta.length){
+    doc.setFontSize(9);
+    meta.forEach((m,i) => {
+      const col = i % 3, row = Math.floor(i/3);
+      const x = 14 + col * ((doc.internal.pageSize.getWidth()-28)/3);
+      doc.setTextColor(120,125,130); doc.text(m[0], x, 29 + row*9);
+      doc.setTextColor(25,30,38); doc.setFont("helvetica","bold"); doc.text(String(m[1] ?? "—"), x, 34 + row*9);
+      doc.setFont("helvetica","normal");
+      y = Math.max(y, 40 + row*9);
+    });
+  }
+  return y;
+}
+function pdfTable(doc, head, body, startY, opts={}){
+  doc.autoTable({
+    head:[head], body, startY,
+    theme:"grid", styles:{fontSize:8.2, cellPadding:1.7, lineColor:[220,218,210], textColor:[30,35,42]},
+    headStyles:{fillColor:[236,234,227], textColor:[40,48,58], fontStyle:"bold", lineColor:[210,208,200]},
+    alternateRowStyles:{fillColor:[250,249,246]},
+    margin:{left:14,right:14,bottom:16},
+    ...opts
+  });
+  return doc.lastAutoTable.finalY;
+}
+function pdfFooter(doc){
+  const p = doc.internal.getNumberOfPages();
+  for (let i=1;i<=p;i++){
+    doc.setPage(i);
+    doc.setFontSize(8); doc.setTextColor(140,145,150);
+    doc.text("Generato il "+dmy(today())+" · Master", 14, doc.internal.pageSize.getHeight()-8);
+    doc.text(i+"/"+p, doc.internal.pageSize.getWidth()-14, doc.internal.pageSize.getHeight()-8, {align:"right"});
+  }
+}
+
+/* ============================ dati di esempio (da LISTA_MATERIALE.xlsx) ============================ */
+const SEED_ART = [
+  // descrizione, fornitore, categoria, um, prezzo, iva, contenuto, umBase
+  ["GIN WHITMAN 1L","GHIDONI","Alcolici","pz",7.18,.22,1,"l"],
+  ["GIN MARE","GHIDONI","Alcolici","pz",32.18,.22,.7,"l"],
+  ["GIN MALFY POMPELMO","GHIDONI","Alcolici","pz",25,.22,.7,"l"],
+  ["VODKA TOVARITCH 1L","GHIDONI","Alcolici","pz",7.18,.22,1,"l"],
+  ["DILMOOR RUM DARK ISLA ANTIGUA","GHIDONI","Alcolici","pz",7.4,.22,1,"l"],
+  ["DILMOOR RUM WHITE ISLA ANTIGUA","GHIDONI","Alcolici","pz",7.69,.22,1,"l"],
+  ["TEQUILA CHANCLA","GHIDONI","Alcolici","pz",7.89,.22,1,"l"],
+  ["JÄGERMEISTER","GHIDONI","Alcolici","pz",13.58,.22,1,"l"],
+  ["DILMOOR APERITIVO","GHIDONI","Alcolici","pz",3.84,.22,1,"l"],
+  ["DILMOOR BITTER","GHIDONI","Alcolici","pz",5.67,.22,1,"l"],
+  ["VERMOUTH MARTINI BITTER","GHIDONI","Alcolici","pz",0,.22,1,"l"],
+  ["CAMPARI SODA","GHIDONI","Alcolici","pz",0,.22,1,"pz"],
+  ["PROSECCO PER SPRITZ (Blanc de blanc)","GHIDONI","Vini","pz",3.5,.22,.75,"l"],
+  ["MONTENEGRO 1L","GHIDONI","Alcolici","pz",13.12,.22,1,"l"],
+  ["TONICA 1L SCHWEPPES","GHIDONI","Bibite","pz",1,.22,1,"l"],
+  ["LEMON 1L SCHWEPPES","GHIDONI","Bibite","pz",1,.22,1,"l"],
+  ["REDBULL","GHIDONI","Bibite","pz",1.1,.22,.25,"l"],
+  ["SUCCO PERA","GHIDONI","Bibite","pz",0,.22,1.5,"l"],
+  ["COCA COLA LATTINA","GHIDONI","Bibite","pz",0,.22,.33,"l"],
+  ["COCA COLA ZERO LATTINA","GHIDONI","Bibite","pz",0,.22,.33,"l"],
+  ["FANTA LATTINA","GHIDONI","Bibite","pz",0,.22,.33,"l"],
+  ["BIRRA PAULANER FUSTO","GHIDONI","Birra","fusto",0,.22,30,"l"],
+  ["BIRRA IPA FUSTO","GHIDONI","Birra","fusto",0,.22,20,"l"],
+  ["BIRRA FORST NON PASTORIZZATA FUSTO","GHIDONI","Birra","fusto",0,.22,30,"l"],
+  ["SCIROPPO ZUCCHERO","GHIDONI","Sciroppi","pz",5.3,0,1,"l"],
+  ["SCIROPPO MARACUJA","GHIDONI","Sciroppi","pz",9.1,0,1,"l"],
+  ["SCIROPPO SAMBUCO","GHIDONI","Sciroppi","pz",9.24,0,1,"l"],
+  ["BICCHIERI COCA POLIP 355 CC","GHIDONI","Materiale di consumo","pz",.08,.22,1,"pz"],
+  ["BICCHIERE FORST PLAST 0,4","GHIDONI","Materiale di consumo","pz",0,.22,1,"pz"],
+  ["CANNUCCE","ROSSETTO","Materiale di consumo","cf",0,.22,1,"pz"],
+  ["BOWL GHIACCIO","CINESI","Materiale di consumo","pz",0,.22,1,"pz"],
+  ["SODA","CONAD","Bibite","pz",0,.22,1,"l"],
+  ["BICCHIERI SHOT","CONAD","Materiale di consumo","cf",0,.22,1,"pz"],
+  ["BICCHIERI NEGRONI","CONAD","Materiale di consumo","cf",0,.22,1,"pz"],
+  ["GHIACCIO","CONAD","Materiale di consumo","kg",0,.22,1,"kg"],
+  ["SUCCO DI LIMONE","CONAD","Bibite","pz",0,.22,1,"l"],
+  ["SALSICCIA","CENTRO CARNI","Food","kg",7.9,.10,1000,"g"],
+  ["WURSTEL","CENTRO CARNI","Food","kg",8.9,.10,1000,"g"],
+  ["COTOLETTE","CENTRO CARNI","Food","kg",6.9,.10,1000,"g"],
+  ["NUGGETS","CENTRO CARNI","Food","kg",6.9,.10,1000,"g"],
+  ["PANE","FORNO","Food","pz",.5,.04,1,"pz"],
+  ["VERDURE E SALSE","CONAD","Food","pz",.3,.04,1,"pz"],
+  ["TEGLIA PIZZA","FORNO","Food","pz",20,.04,12,"pz"]
+];
+const SEED_PROD = [
+  // nome, categoria, prezzoVendita, [[articolo, qta]]
+  ["Aperol Spritz","Aperitivi",5,[["DILMOOR APERITIVO",.06],["PROSECCO PER SPRITZ (Blanc de blanc)",.09],["SODA",.03],["BICCHIERI COCA POLIP 355 CC",1]]],
+  ["Negroni","Cocktail",6,[["DILMOOR BITTER",.03],["VERMOUTH MARTINI BITTER",.03],["GIN WHITMAN 1L",.03],["BICCHIERI NEGRONI",1]]],
+  ["Gin Tonic","Cocktail",6,[["GIN WHITMAN 1L",.05],["TONICA 1L SCHWEPPES",.2],["BICCHIERI COCA POLIP 355 CC",1]]],
+  ["Vodka Red Bull","Cocktail",6,[["VODKA TOVARITCH 1L",.05],["REDBULL",.25],["BICCHIERI COCA POLIP 355 CC",1]]],
+  ["Birra media alla spina","Birra",5,[["BIRRA PAULANER FUSTO",.4],["BICCHIERE FORST PLAST 0,4",1]]],
+  ["Panino salsiccia","Food",5,[["SALSICCIA",120],["PANE",1],["VERDURE E SALSE",1]]],
+  ["Panino wurstel","Food",4,[["WURSTEL",83],["PANE",1],["VERDURE E SALSE",1]]],
+  ["Panino cotoletta","Food",5,[["COTOLETTE",100],["PANE",1],["VERDURE E SALSE",1]]],
+  ["Porzione nuggets (8 pz)","Food",3,[["NUGGETS",144]]],
+  ["Trancio pizza","Food",3,[["TEGLIA PIZZA",1]]]
+];
+const SEED_UB = ["Magazzino bar","Cella frigo","Container esterno"];
+
+function buildSeed(){
+  const articoli = SEED_ART.map(a => ({
+    id: uid(), codice:"", descrizione:a[0], fornitore:a[1], categoria:a[2], um:a[3],
+    prezzo:a[4], iva:a[5], contenuto:a[6], umBase:a[7], prezzoVendita:0, scortaMin:0,
+    cespite:false, note:"", attivo:true
+  }));
+  const byName = {}; articoli.forEach(a => byName[a.descrizione] = a.id);
+  const prodotti = SEED_PROD.map(p => ({
+    id: uid(), nome:p[0], categoria:p[1], prezzoVendita:p[2], ivaVendita:0, note:"", stima:0,
+    componenti: p[3].map(c => ({id:uid(), articoloId:byName[c[0]] || "", descrizione:c[0], qta:c[1], costoManuale:null}))
+  }));
+  const ubicazioni = SEED_UB.map((u,i) => ({id:uid(), nome:u, tipo:i===1?"Frigo":"Magazzino", indirizzo:"", note:""}));
+  const fornitori = [...new Set(SEED_ART.map(a=>a[1]))].map(f => ({id:uid(), nome:f, referente:"", email:"", telefono:"", note:""}));
+  return {articoli, prodotti, ubicazioni, fornitori};
+}
+
+/* ============================ calcoli ============================ */
+function rigaTot(r){
+  const cu = n(r.prezzo) * (1 + parseIva(r.iva));
+  return {costoUnitario:cu, imponibile:n(r.prezzo)*n(r.quantita), iva:cu*n(r.quantita)-n(r.prezzo)*n(r.quantita), totale:cu*n(r.quantita)};
+}
+function ordineTot(o){
+  return (o.righe||[]).reduce((acc,r) => {
+    const t = rigaTot(r);
+    acc.imponibile += t.imponibile; acc.iva += t.iva; acc.totale += t.totale; acc.righe++;
+    acc.pezzi += n(r.quantita);
+    return acc;
+  }, {imponibile:0, iva:0, totale:0, righe:0, pezzi:0});
+}
+function costoProdotto(p, artById){
+  return (p.componenti||[]).reduce((s,c) => {
+    if (c.costoManuale !== null && c.costoManuale !== undefined && c.costoManuale !== "") return s + n(c.costoManuale);
+    const a = artById[c.articoloId];
+    return s + (a ? costoBase(a) * n(c.qta) : 0);
+  }, 0);
+}
+function margini(p, artById){
+  const costo = costoProdotto(p, artById);
+  const pv = n(p.prezzoVendita);
+  const ricavo = pv / (1 + parseIva(p.ivaVendita));
+  const mu = ricavo - costo;
+  return {costo, pv, ricavo, mu, pctPv: ricavo ? mu/ricavo : 0, ricarico: costo ? mu/costo : 0};
+}
+function giacenzeMap(movimenti){
+  const m = {};
+  (movimenti||[]).forEach(mv => {
+    const q = n(mv.quantita) * (mv.tipo === "Scarico" ? -1 : 1);
+    const k = mv.articoloId + "|" + (mv.ubicazioneId || "");
+    m[k] = (m[k] || 0) + q;
+    if (mv.tipo === "Trasferimento" && mv.ubicazioneDest){
+      const k2 = mv.articoloId + "|" + mv.ubicazioneDest;
+      m[k] = (m[k] || 0) - n(mv.quantita) * 2;
+      m[k2] = (m[k2] || 0) + n(mv.quantita);
+    }
+  });
+  return m;
+}
+const STATI = ["Bozza","Da inviare","Inviato","Confermato","Ricevuto","Annullato"];
+const STATO_CLS = {Bozza:"", "Da inviare":"b", Inviato:"n", Confermato:"n", Ricevuto:"g", Annullato:"r"};
+const UM_LIST = ["pz","cf","kg","g","l","ml","fusto","cartone","bancale"];
+
+/* ============================ APP ============================ */
+const NAV = [
+  {k:"dashboard", l:"Quadro generale", i:"◧"},
+  {k:"ordini",    l:"Ordini",          i:"▤"},
+  {k:"articoli",  l:"Articoli",        i:"▦"},
+  {k:"margini",   l:"Marginalità",     i:"◔"},
+  {k:"magazzino", l:"Magazzino",       i:"▣"},
+  {k:"setup",     l:"Impostazioni",    i:"⚙"}
+];
+
+function App(){
+  const [tab, setTab] = useState(() => localStorage.getItem(LS_PREFIX+"tab") || "dashboard");
+  const [toasts, setToasts] = useState([]);
+  const [mode] = useState(() => Store.mode);
+
+  const [articoli, setArticoli]     = useColl("articoli", []);
+  const [fornitori, setFornitori]   = useColl("fornitori", []);
+  const [ordini, setOrdini]         = useColl("ordini", []);
+  const [prodotti, setProdotti]     = useColl("prodotti", []);
+  const [ubicazioni, setUbicazioni] = useColl("ubicazioni", []);
+  const [movimenti, setMovimenti]   = useColl("movimenti", []);
+
+  const toast = useCallback((msg, kind) => {
+    const id = uid();
+    setToasts(t => [...t, {id, msg, kind}]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3600);
+  }, []);
+  useEffect(() => { localStorage.setItem(LS_PREFIX+"tab", tab); }, [tab]);
+
+  const artById = useMemo(() => Object.fromEntries(articoli.map(a => [a.id, a])), [articoli]);
+  const ubById  = useMemo(() => Object.fromEntries(ubicazioni.map(u => [u.id, u])), [ubicazioni]);
+  const fornNomi = useMemo(() => {
+    const s = new Set(fornitori.map(f => f.nome));
+    articoli.forEach(a => a.fornitore && s.add(a.fornitore));
+    return [...s].filter(Boolean).sort();
+  }, [fornitori, articoli]);
+  const categorie = useMemo(() => [...new Set(articoli.map(a => a.categoria).filter(Boolean))].sort(), [articoli]);
+
+  const ctx = {
+    articoli, setArticoli, fornitori, setFornitori, ordini, setOrdini, prodotti, setProdotti,
+    ubicazioni, setUbicazioni, movimenti, setMovimenti,
+    artById, ubById, fornNomi, categorie, toast, mode, setTab
+  };
+
+  const current = NAV.find(x => x.k === tab) || NAV[0];
+
+  return <ToastCtx.Provider value={toast}>
+    <div className="shell">
+      <aside className="side">
+        <div className="brand">
+          <h1>Master</h1>
+          <span className="sub">Ordini · Magazzino · Marginalità</span>
+        </div>
+        <nav className="nav">
+          {NAV.map(x => <button key={x.k} className={tab===x.k?"on":""} onClick={()=>setTab(x.k)}>
+            <span className="ico">{x.i}</span>{x.l}
+          </button>)}
+        </nav>
+        <div className="sidefoot">
+          <span className="dot" style={{background: mode==="cloud" ? "#57c08a" : "#d9a227"}}/>
+          {mode==="cloud" ? "Sincronizzato" : "Solo questo dispositivo"}
+        </div>
+      </aside>
+
+      <div className="main">
+        {tab==="dashboard" && <Dashboard ctx={ctx}/>}
+        {tab==="ordini"    && <Ordini ctx={ctx}/>}
+        {tab==="articoli"  && <Articoli ctx={ctx}/>}
+        {tab==="margini"   && <Margini ctx={ctx}/>}
+        {tab==="magazzino" && <Magazzino ctx={ctx}/>}
+        {tab==="setup"     && <Setup ctx={ctx}/>}
+      </div>
+
+      <nav className="mobnav">
+        {NAV.map(x => <button key={x.k} className={tab===x.k?"on":""} onClick={()=>setTab(x.k)}>
+          <span className="ico">{x.i}</span>{x.l.split(" ")[0]}
+        </button>)}
+      </nav>
+    </div>
+    <Toasts items={toasts}/>
+  </ToastCtx.Provider>;
+}
+
+function Top({title, hint, children}){
+  return <div className="topbar"><h2>{title}</h2>{hint && <span className="hint">{hint}</span>}<div className="spacer"/>{children}</div>;
+}
+
+/* ============================ DASHBOARD ============================ */
+function Dashboard({ctx}){
+  const {ordini, articoli, prodotti, movimenti, artById, setTab} = ctx;
+  const aperti = ordini.filter(o => !["Ricevuto","Annullato"].includes(o.stato));
+  const valAperti = aperti.reduce((s,o) => s + ordineTot(o).totale, 0);
+  const valAnno = ordini.filter(o => (o.data||"").slice(0,4) === String(new Date().getFullYear()))
+                        .reduce((s,o) => s + ordineTot(o).totale, 0);
+  const gm = giacenzeMap(movimenti);
+  const valMag = Object.entries(gm).reduce((s,[k,q]) => {
+    const a = artById[k.split("|")[0]];
+    return s + (a ? costoUn(a) * q : 0);
+  }, 0);
+  const marg = prodotti.map(p => ({p, m: margini(p, artById)})).filter(x => x.m.pv > 0);
+  const margMedio = marg.length ? marg.reduce((s,x) => s + x.m.pctPv, 0) / marg.length : 0;
+  const peggiori = [...marg].sort((a,b) => a.m.pctPv - b.m.pctPv).slice(0,5);
+  const perForn = {};
+  aperti.forEach(o => { const t = ordineTot(o).totale; perForn[o.fornitore || "—"] = (perForn[o.fornitore || "—"] || 0) + t; });
+  const forn = Object.entries(perForn).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxF = Math.max(1, ...forn.map(f=>f[1]));
+  const sottoScorta = articoli.filter(a => n(a.scortaMin) > 0)
+    .map(a => ({a, q: Object.entries(gm).filter(([k])=>k.startsWith(a.id+"|")).reduce((s,[,v])=>s+v,0)}))
+    .filter(x => x.q < n(x.a.scortaMin));
+
+  return <>
+    <Top title="Quadro generale" hint={dmy(today())}>
+      <button className="btn" onClick={()=>setTab("ordini")}>Vai agli ordini</button>
+    </Top>
+    <div className="wrap grid" style={{gap:16}}>
+      <div className="kpis">
+        <div className="kpi acc"><div className="lab">Ordini in corso</div><div className="val">{aperti.length}</div><div className="sub">{eur(valAperti)} da ricevere</div></div>
+        <div className="kpi"><div className="lab">Acquistato nell'anno</div><div className="val">{eur(valAnno,0)}</div><div className="sub">{ordini.length} ordini registrati</div></div>
+        <div className="kpi"><div className="lab">Valore di magazzino</div><div className="val">{eur(valMag,0)}</div><div className="sub">{Object.values(gm).filter(q=>q>0).length} posizioni con giacenza</div></div>
+        <div className="kpi"><div className="lab">Margine medio a listino</div><div className="val">{marg.length? pct(margMedio) : "—"}</div><div className="sub">{marg.length} prodotti con prezzo</div></div>
+      </div>
+
+      <div className="grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(320px,1fr))"}}>
+        <div className="card">
+          <header><h3>Ordini in corso</h3><div className="spacer"/><button className="btn sm" onClick={()=>setTab("ordini")}>Apri</button></header>
+          {aperti.length === 0
+            ? <Empty>Nessun ordine aperto.</Empty>
+            : <div className="scroll" style={{maxHeight:290}}><table>
+                <thead><tr><th>Ordine</th><th>Fornitore</th><th>Stato</th><th className="t-right">Totale</th></tr></thead>
+                <tbody>{aperti.slice(0,10).map(o => <tr key={o.id}>
+                  <td>{o.titolo || o.numero || "senza titolo"}<div className="small muted">{dmy(o.data)}</div></td>
+                  <td>{o.fornitore || "—"}</td>
+                  <td><span className={"tag "+(STATO_CLS[o.stato]||"")}>{o.stato}</span></td>
+                  <td className="t-right num">{eur(ordineTot(o).totale)}</td>
+                </tr>)}</tbody>
+              </table></div>}
+        </div>
+
+        <div className="card">
+          <header><h3>Spesa aperta per fornitore</h3></header>
+          <div className="body">
+            {forn.length === 0 ? <span className="muted small">Ancora nessun dato.</span> : forn.map(([k,v]) =>
+              <div key={k} style={{display:"grid",gridTemplateColumns:"130px 1fr 86px",gap:10,alignItems:"center",marginBottom:8}}>
+                <span className="small" style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{k}</span>
+                <div className="bar"><i style={{width:(v/maxF*100)+"%",background:"var(--ink-3)"}}/></div>
+                <span className="num t-right">{eur(v,0)}</span>
+              </div>)}
+          </div>
+        </div>
+
+        <div className="card">
+          <header><h3>Margini più bassi</h3><div className="spacer"/><button className="btn sm" onClick={()=>setTab("margini")}>Apri</button></header>
+          {peggiori.length === 0
+            ? <Empty>Inserisci prezzi di vendita per vedere i margini.</Empty>
+            : <table><thead><tr><th>Prodotto</th><th className="t-right">Costo</th><th className="t-right">Prezzo</th><th className="t-right">Margine</th></tr></thead>
+              <tbody>{peggiori.map(({p,m}) => <tr key={p.id}>
+                <td>{p.nome}</td>
+                <td className="t-right num">{eur(m.costo)}</td>
+                <td className="t-right num">{eur(m.pv)}</td>
+                <td className="t-right num"><span className={m.mu>=0?"pos":"neg"}>{pct(m.pctPv)}</span></td>
+              </tr>)}</tbody></table>}
+        </div>
+
+        <div className="card">
+          <header><h3>Sotto scorta</h3><div className="spacer"/><button className="btn sm" onClick={()=>setTab("magazzino")}>Apri</button></header>
+          {sottoScorta.length === 0
+            ? <Empty>Nessun articolo sotto la scorta minima.</Empty>
+            : <table><thead><tr><th>Articolo</th><th className="t-right">Giacenza</th><th className="t-right">Minimo</th></tr></thead>
+              <tbody>{sottoScorta.slice(0,10).map(({a,q}) => <tr key={a.id}>
+                <td>{a.descrizione}</td><td className="t-right num">{num(q,0)}</td><td className="t-right num">{num(a.scortaMin,0)}</td>
+              </tr>)}</tbody></table>}
+        </div>
+      </div>
+    </div>
+  </>;
+}
+
+/* ============================ ORDINI ============================ */
+function nuovoOrdine(ordini){
+  const anno = new Date().getFullYear();
+  const num = ordini.filter(o => (o.numero||"").includes(String(anno))).length + 1;
+  return {
+    id: uid(), numero: String(num).padStart(3,"0")+"/"+anno, titolo:"", fornitore:"", data: today(),
+    dataConsegna:"", evento:"", stato:"Bozza", note:"", ubicazioneId:"", ricevutoIl:"", righe:[]
+  };
+}
+function rigaDaArticolo(a){
+  return {id:uid(), articoloId:a.id, descrizione:a.descrizione, fornitore:a.fornitore, categoria:a.categoria,
+          um:a.um, prezzo:n(a.prezzo), iva:parseIva(a.iva), quantita:1, note:""};
+}
+
+function Ordini({ctx}){
+  const {ordini, setOrdini, toast} = ctx;
+  const [openIds, setOpenIds] = useState(() => { try{ return JSON.parse(localStorage.getItem(LS_PREFIX+"openOrd") || "[]"); }catch(e){ return []; } });
+  const [activeId, setActiveId] = useState(null);
+  const [q, setQ] = useState("");
+  const [filtroStato, setFiltroStato] = useState("");
+  const [del, setDel] = useState(null);
+
+  useEffect(() => { localStorage.setItem(LS_PREFIX+"openOrd", JSON.stringify(openIds)); }, [openIds]);
+  useEffect(() => { setOpenIds(ids => ids.filter(id => ordini.some(o => o.id === id))); }, [ordini.length]);
+
+  const open = id => { setOpenIds(ids => ids.includes(id) ? ids : [...ids, id]); setActiveId(id); };
+  const close = id => { setOpenIds(ids => ids.filter(x => x !== id)); setActiveId(a => a === id ? null : a); };
+  const patch = (id, p) => setOrdini(list => list.map(o => o.id === id ? {...o, ...p} : o));
+
+  const creaOrdine = () => { const o = nuovoOrdine(ordini); setOrdini(l => [o, ...l]); open(o.id); toast("Ordine creato","ok"); };
+  const duplica = o => {
+    const c = {...clone(o), id: uid(), numero: nuovoOrdine(ordini).numero, titolo: (o.titolo||"Ordine")+" (copia)",
+               stato:"Bozza", data: today(), ricevutoIl:"", righe:(o.righe||[]).map(r => ({...r, id: uid()}))};
+    setOrdini(l => [c, ...l]); open(c.id); toast("Ordine duplicato","ok");
+  };
+
+  const lista = ordini.filter(o => byText(q, o.titolo, o.numero, o.fornitore, o.evento) && (!filtroStato || o.stato === filtroStato));
+  const attivo = ordini.find(o => o.id === activeId);
+  const openOrds = openIds.map(id => ordini.find(o => o.id === id)).filter(Boolean);
+
+  return <>
+    <Top title="Ordini" hint={ordini.length + " ordini · " + openOrds.length + " aperti"}>
+      <button className="btn" onClick={templateOrdine}>Scarica modello Excel</button>
+      <button className="btn gold" onClick={creaOrdine}>Nuovo ordine</button>
+    </Top>
+
+    {openOrds.length > 0 && <div className="otabs">
+      <div className={"otab"+(activeId===null?" on":"")} onClick={()=>setActiveId(null)}>Elenco</div>
+      {openOrds.map(o => <div key={o.id} className={"otab"+(activeId===o.id?" on":"")} onClick={()=>setActiveId(o.id)}>
+        <span>{o.titolo || o.numero}</span>
+        <span className="num">{eur(ordineTot(o).totale,0)}</span>
+        <span className="x" onClick={e=>{e.stopPropagation();close(o.id);}}>✕</span>
+      </div>)}
+    </div>}
+
+    <div className="wrap">
+      {attivo
+        ? <OrdineEditor key={attivo.id} ordine={attivo} patch={p => patch(attivo.id, p)} ctx={ctx} onClose={()=>close(attivo.id)}/>
+        : <>
+          <div className="toolbar">
+            <div className="search"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Cerca per titolo, numero, fornitore…"/></div>
+            <Sel value={filtroStato} onChange={setFiltroStato} options={STATI} placeholder="Tutti gli stati" style={{width:150}}/>
+            <div className="spacer"/>
+            <button className="btn" onClick={()=>esportaElencoOrdini(ordini)}>Esporta elenco</button>
+          </div>
+          <div className="card">
+            {lista.length === 0
+              ? <Empty action={<button className="btn gold" onClick={creaOrdine}>Crea il primo ordine</button>}>Nessun ordine da mostrare.</Empty>
+              : <div className="scroll"><table>
+                <thead><tr>
+                  <th>Numero</th><th>Titolo</th><th>Fornitore</th><th>Evento</th><th>Data</th><th>Consegna</th>
+                  <th>Stato</th><th className="t-right">Righe</th><th className="t-right">Imponibile</th><th className="t-right">Totale</th><th></th>
+                </tr></thead>
+                <tbody>{lista.map(o => { const t = ordineTot(o); return <tr key={o.id} style={{cursor:"pointer"}} onClick={()=>open(o.id)}>
+                  <td className="num">{o.numero}</td>
+                  <td><strong>{o.titolo || "—"}</strong></td>
+                  <td>{o.fornitore || "—"}</td>
+                  <td className="small">{o.evento || "—"}</td>
+                  <td className="num">{dmy(o.data)}</td>
+                  <td className="num">{dmy(o.dataConsegna)}</td>
+                  <td><span className={"tag "+(STATO_CLS[o.stato]||"")}>{o.stato}</span></td>
+                  <td className="t-right num">{t.righe}</td>
+                  <td className="t-right num">{eur(t.imponibile)}</td>
+                  <td className="t-right num"><strong>{eur(t.totale)}</strong></td>
+                  <td className="t-right" onClick={e=>e.stopPropagation()}>
+                    <button className="icobtn" title="Duplica" onClick={()=>duplica(o)}>⧉</button>
+                    <button className="icobtn del" title="Elimina" onClick={()=>setDel(o)}>🗑</button>
+                  </td>
+                </tr>; })}</tbody>
+              </table></div>}
+          </div>
+        </>}
+    </div>
+
+    {del && <Confirm text={`Elimini l'ordine "${del.titolo || del.numero}" e tutte le sue righe?`}
+      onClose={()=>setDel(null)} onYes={()=>{ setOrdini(l => l.filter(o => o.id !== del.id)); close(del.id); toast("Ordine eliminato"); }}/>}
+  </>;
+}
+
+function OrdineEditor({ordine, patch, ctx, onClose}){
+  const {articoli, fornNomi, ubicazioni, setArticoli, setMovimenti, artById, toast} = ctx;
+  const [imp, setImp] = useState(null);
+  const [ricevi, setRicevi] = useState(false);
+  const t = ordineTot(ordine);
+  const righe = ordine.righe || [];
+  const setRighe = f => patch({righe: typeof f === "function" ? f(righe) : f});
+  const setRiga = (id, p) => setRighe(rs => rs.map(r => r.id === id ? {...r, ...p} : r));
+
+  const addVuota = () => setRighe(rs => [...rs, {id:uid(), articoloId:"", descrizione:"", fornitore:ordine.fornitore||"", categoria:"", um:"pz", prezzo:0, iva:0.22, quantita:1, note:""}]);
+  const addArticolo = artId => {
+    const a = artById[artId]; if (!a) return;
+    setRighe(rs => {
+      const ex = rs.find(r => r.articoloId === artId);
+      if (ex) return rs.map(r => r.id === ex.id ? {...r, quantita: n(r.quantita) + 1} : r);
+      return [...rs, rigaDaArticolo(a)];
+    });
+  };
+  const collegaArticolo = (rigaId, artId) => {
+    const a = artById[artId]; if (!a) { setRiga(rigaId, {articoloId:""}); return; }
+    setRiga(rigaId, {articoloId:a.id, descrizione:a.descrizione, fornitore:a.fornitore, categoria:a.categoria, um:a.um, prezzo:n(a.prezzo), iva:parseIva(a.iva)});
+  };
+
+  const suggeriti = useMemo(() => {
+    const f = norm(ordine.fornitore);
+    return articoli.filter(a => a.attivo !== false && (!f || norm(a.fornitore) === f));
+  }, [articoli, ordine.fornitore]);
+
+  const registraMagazzino = ubicazioneId => {
+    const movs = righe.filter(r => r.articoloId && n(r.quantita) > 0).map(r => ({
+      id: uid(), data: today(), tipo:"Carico", articoloId: r.articoloId, quantita: n(r.quantita),
+      ubicazioneId, valoreUnitario: n(r.prezzo) * (1 + parseIva(r.iva)), ordineId: ordine.id,
+      note: "Ordine " + (ordine.numero || "")
+    }));
+    if (!movs.length){ toast("Nessuna riga collegata a un articolo dell'anagrafica","err"); return; }
+    setMovimenti(l => [...movs, ...l]);
+    patch({stato:"Ricevuto", ricevutoIl: today(), ubicazioneId});
+    setRicevi(false);
+    toast(movs.length + " carichi registrati a magazzino","ok");
+  };
+
+  return <>
+    <div className="card" style={{marginBottom:14}}>
+      <div className="body">
+        <div className="formgrid">
+          <Field label="Numero"><Txt value={ordine.numero} onChange={v=>patch({numero:v})}/></Field>
+          <Field label="Titolo" style={{gridColumn:"span 2"}}><Txt value={ordine.titolo} onChange={v=>patch({titolo:v})} placeholder="es. Ordine Ghidoni IV 2026"/></Field>
+          <Field label="Fornitore">
+            <input list="forn-list" value={ordine.fornitore || ""} onChange={e=>patch({fornitore:e.target.value})}/>
+            <datalist id="forn-list">{fornNomi.map(f => <option key={f} value={f}/>)}</datalist>
+          </Field>
+          <Field label="Evento / destinazione"><Txt value={ordine.evento} onChange={v=>patch({evento:v})} placeholder="es. Torneo del Prete 2026"/></Field>
+          <Field label="Data ordine"><input type="date" value={ordine.data || ""} onChange={e=>patch({data:e.target.value})}/></Field>
+          <Field label="Consegna prevista"><input type="date" value={ordine.dataConsegna || ""} onChange={e=>patch({dataConsegna:e.target.value})}/></Field>
+          <Field label="Stato"><Sel value={ordine.stato} onChange={v=>patch({stato:v})} options={STATI}/></Field>
+        </div>
+        <div style={{marginTop:12}}>
+          <Field label="Note"><textarea value={ordine.note || ""} onChange={e=>patch({note:e.target.value})} style={{minHeight:48}}/></Field>
+        </div>
+      </div>
+    </div>
+
+    <div className="card">
+      <header>
+        <h3>Righe dell'ordine</h3>
+        <span className="muted small">{t.righe} righe · {num(t.pezzi,0)} pezzi</span>
+        <div className="spacer"/>
+        <button className="btn sm" onClick={addVuota}>+ Riga</button>
+        <button className="btn sm" onClick={()=>setImp("ordine")}>Importa Excel</button>
+        <button className="btn sm" onClick={templateOrdine}>Modello</button>
+        <button className="btn sm" onClick={()=>esportaOrdineExcel(ordine)}>Excel</button>
+        <button className="btn sm pri" onClick={()=>esportaOrdinePdf(ordine)}>PDF</button>
+        <button className="btn sm gold" onClick={()=>setRicevi(true)}>Carica a magazzino</button>
+      </header>
+
+      <div className="body" style={{paddingBottom:8}}>
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+          <span className="small muted">Aggiungi dall'anagrafica:</span>
+          <select value="" onChange={e=>{ addArticolo(e.target.value); e.target.value=""; }} style={{maxWidth:420}}>
+            <option value="">Scegli un articolo…</option>
+            {suggeriti.map(a => <option key={a.id} value={a.id}>{a.descrizione}{a.fornitore?" · "+a.fornitore:""} — {eur(costoUn(a))}</option>)}
+          </select>
+        </div>
+      </div>
+
+      {righe.length === 0
+        ? <Empty action={<div className="btnrow"><button className="btn" onClick={addVuota}>Aggiungi una riga</button><button className="btn" onClick={()=>setImp("ordine")}>Importa da Excel</button></div>}>
+            L'ordine è vuoto.
+          </Empty>
+        : <div className="scroll"><table>
+            <thead><tr>
+              <th style={{minWidth:230}}>Articolo</th><th style={{minWidth:120}}>Fornitore</th><th style={{width:62}}>UM</th>
+              <th className="t-right" style={{width:104}}>Importo unit.</th><th className="t-right" style={{width:74}}>IVA</th>
+              <th className="t-right" style={{width:88}}>Quantità</th><th className="t-right" style={{width:104}}>Costo unit.</th>
+              <th className="t-right" style={{width:112}}>Costo totale</th><th style={{minWidth:120}}>Note</th><th style={{width:58}}></th>
+            </tr></thead>
+            <tbody>{righe.map((r,i) => { const rt = rigaTot(r); return <tr key={r.id}>
+              <td>
+                <input className="cellinput" list={"art-"+ordine.id} value={r.descrizione || ""}
+                  onChange={e=>{
+                    const v = e.target.value;
+                    const a = articoli.find(x => x.descrizione === v);
+                    if (a) collegaArticolo(r.id, a.id); else setRiga(r.id, {descrizione:v, articoloId:""});
+                  }}/>
+                {!r.articoloId && r.descrizione && <span className="tag" style={{fontSize:10,marginTop:2}}>fuori anagrafica</span>}
+              </td>
+              <td><input className="cellinput" list="forn-list" value={r.fornitore || ""} onChange={e=>setRiga(r.id,{fornitore:e.target.value})}/></td>
+              <td><input className="cellinput" list="um-list" value={r.um || ""} onChange={e=>setRiga(r.id,{um:e.target.value})}/></td>
+              <td><Num className="cellinput n" value={r.prezzo} onChange={v=>setRiga(r.id,{prezzo:v})}/></td>
+              <td><Num className="cellinput n" value={Math.round(parseIva(r.iva)*10000)/100} onChange={v=>setRiga(r.id,{iva:parseIva(v)})}/></td>
+              <td><Num className="cellinput n" value={r.quantita} onChange={v=>setRiga(r.id,{quantita:v})}/></td>
+              <td className="t-right num muted">{num(rt.costoUnitario,4)}</td>
+              <td className="t-right num"><strong>{eur(rt.totale)}</strong></td>
+              <td><input className="cellinput" value={r.note || ""} onChange={e=>setRiga(r.id,{note:e.target.value})}/></td>
+              <td className="t-right">
+                <button className="icobtn" title="Duplica riga" onClick={()=>setRighe(rs => [...rs.slice(0,i+1), {...r, id:uid()}, ...rs.slice(i+1)])}>⧉</button>
+                <button className="icobtn del" title="Elimina riga" onClick={()=>setRighe(rs => rs.filter(x => x.id !== r.id))}>✕</button>
+              </td>
+            </tr>; })}</tbody>
+            <tfoot><tr>
+              <td colSpan={6}>Totali</td>
+              <td className="t-right">Imponibile</td>
+              <td className="t-right num">{eur(t.imponibile)}</td><td colSpan={2}></td>
+            </tr><tr>
+              <td colSpan={6}></td><td className="t-right">IVA</td><td className="t-right num">{eur(t.iva)}</td><td colSpan={2}></td>
+            </tr><tr>
+              <td colSpan={6}></td><td className="t-right">Totale</td>
+              <td className="t-right num" style={{fontSize:15}}>{eur(t.totale)}</td><td colSpan={2}></td>
+            </tr></tfoot>
+          </table></div>}
+      <datalist id={"art-"+ordine.id}>{articoli.map(a => <option key={a.id} value={a.descrizione}/>)}</datalist>
+      <datalist id="um-list">{UM_LIST.map(u => <option key={u} value={u}/>)}</datalist>
+    </div>
+
+    <div className="btnrow" style={{marginTop:14}}>
+      <button className="btn" onClick={onClose}>Chiudi scheda</button>
+    </div>
+
+    {imp && <ImportModal ctx={ctx} onClose={()=>setImp(null)} onDone={(nuove, modo) => {
+      setRighe(rs => modo === "replace" ? nuove : [...rs, ...nuove]);
+      setImp(null);
+    }}/>}
+    {ricevi && <Modal title="Carico a magazzino" onClose={()=>setRicevi(false)} footer={
+      <><button className="btn" onClick={()=>setRicevi(false)}>Annulla</button></>}>
+      <p className="small muted" style={{marginTop:0}}>Ogni riga collegata a un articolo dell'anagrafica genera un movimento di carico. L'ordine passa in stato “Ricevuto”.</p>
+      {ubicazioni.length === 0
+        ? <Empty>Prima crea un luogo di stoccaggio in Magazzino → Luoghi.</Empty>
+        : <div className="grid" style={{gap:8}}>
+            {ubicazioni.map(u => <button key={u.id} className="btn" style={{justifyContent:"space-between"}} onClick={()=>registraMagazzino(u.id)}>
+              <span><strong>{u.nome}</strong> <span className="muted small">{u.tipo}</span></span><span>Carica qui →</span>
+            </button>)}
+          </div>}
+    </Modal>}
+  </>;
+}
+
+/* ============================ import Excel (righe ordine) ============================ */
+function ImportModal({ctx, onClose, onDone}){
+  const {articoli, setArticoli, toast} = ctx;
+  const [wb, setWb] = useState(null);
+  const [sheet, setSheet] = useState("");
+  const [parsed, setParsed] = useState(null);
+  const [modo, setModo] = useState("append");
+  const [creaMancanti, setCreaMancanti] = useState(true);
+  const fileRef = useRef(null);
+
+  const analizza = (workbook, nome) => {
+    const res = parseRows(sheetRows(workbook, nome));
+    setParsed(res);
+  };
+  const onFile = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try{
+      const workbook = await readWorkbook(f);
+      setWb(workbook);
+      const first = workbook.SheetNames[0];
+      setSheet(first);
+      analizza(workbook, first);
+    }catch(err){ toast("File non leggibile: "+err.message, "err"); }
+  };
+
+  const match = useMemo(() => {
+    if (!parsed || !parsed.rows) return null;
+    const idx = {}; articoli.forEach(a => idx[norm(a.descrizione)] = a);
+    return parsed.rows.map(r => ({...r, art: idx[norm(r.descrizione)] || null}));
+  }, [parsed, articoli]);
+
+  const conferma = () => {
+    if (!match) return;
+    let nuoviArt = [];
+    const righe = match.map(r => {
+      let art = r.art;
+      if (!art && creaMancanti){
+        art = {id:uid(), codice:r.codice||"", descrizione:r.descrizione, fornitore:r.fornitore, categoria:r.categoria,
+               um:r.um||"pz", prezzo:r.prezzo, iva:r.iva === null ? 0.22 : r.iva, contenuto:r.contenuto || 1,
+               umBase:r.umBase||r.um||"pz", prezzoVendita:r.prezzoVendita||0, scortaMin:0, cespite:false, note:"", attivo:true};
+        nuoviArt.push(art);
+      }
+      return {id:uid(), articoloId: art ? art.id : "", descrizione:r.descrizione, fornitore:r.fornitore || (art?art.fornitore:""),
+              categoria:r.categoria || (art?art.categoria:""), um:r.um || (art?art.um:"pz"),
+              prezzo: r.prezzo || (art ? n(art.prezzo) : 0),
+              iva: r.iva === null ? (art ? parseIva(art.iva) : 0.22) : r.iva,
+              quantita: r.quantita, note:r.note};
+    });
+    if (nuoviArt.length) setArticoli(l => [...l, ...nuoviArt]);
+    toast(righe.length + " righe importate" + (nuoviArt.length ? " · " + nuoviArt.length + " articoli creati" : ""), "ok");
+    onDone(righe, modo);
+  };
+
+  const nuovi = match ? match.filter(r => !r.art).length : 0;
+
+  return <Modal lg title="Importa righe da Excel" onClose={onClose} footer={<>
+    <button className="btn" onClick={onClose}>Annulla</button>
+    <button className="btn gold" disabled={!match || !match.length} onClick={conferma}>Importa {match ? match.length : 0} righe</button>
+  </>}>
+    <div className="btnrow" style={{marginBottom:14}}>
+      <button className="btn pri" onClick={()=>fileRef.current.click()}>Scegli file .xlsx</button>
+      <button className="btn" onClick={templateOrdine}>Scarica il modello</button>
+      <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{display:"none"}} onChange={onFile}/>
+    </div>
+    <p className="small muted" style={{marginTop:0}}>
+      Riconosco le intestazioni ovunque si trovino nel foglio: ARTICOLO/TIPOLOGIA, FORNITORE, IMPORTO UNITARIO, IVA, QUANTITÀ, UM, NOTE.
+      Puoi quindi importare anche i tuoi fogli esistenti, non solo il modello.
+    </p>
+
+    {wb && <div className="formgrid" style={{marginBottom:14}}>
+      <Field label="Foglio"><Sel value={sheet} onChange={v=>{setSheet(v); analizza(wb, v);}} options={wb.SheetNames}/></Field>
+      <Field label="Come importare"><Sel value={modo} onChange={setModo} options={[{v:"append",l:"Aggiungi alle righe esistenti"},{v:"replace",l:"Sostituisci tutte le righe"}]}/></Field>
+      <Field label="Articoli non in anagrafica">
+        <label className="small" style={{display:"flex",gap:6,alignItems:"center",fontWeight:400,color:"var(--text)"}}>
+          <input type="checkbox" style={{width:"auto"}} checked={creaMancanti} onChange={e=>setCreaMancanti(e.target.checked)}/>
+          Creali in anagrafica ({nuovi})
+        </label>
+      </Field>
+    </div>}
+
+    {parsed && parsed.error && <div className="tag r" style={{display:"block",padding:"8px 10px"}}>{parsed.error}</div>}
+
+    {match && <div className="card"><div className="scroll" style={{maxHeight:320}}><table>
+      <thead><tr><th>Articolo</th><th>Fornitore</th><th className="t-right">Importo</th><th className="t-right">IVA</th><th className="t-right">Qtà</th><th className="t-right">Totale</th><th></th></tr></thead>
+      <tbody>{match.map((r,i) => { const cu = r.prezzo*(1+(r.iva===null?0.22:r.iva)); return <tr key={i}>
+        <td>{r.descrizione}</td><td>{r.fornitore || "—"}</td>
+        <td className="t-right num">{num(r.prezzo,4)}</td>
+        <td className="t-right num">{r.iva === null ? "—" : pct(r.iva)}</td>
+        <td className="t-right num">{num(r.quantita,0)}</td>
+        <td className="t-right num">{eur(cu*r.quantita)}</td>
+        <td>{r.art ? <span className="tag g">in anagrafica</span> : <span className="tag b">nuovo</span>}</td>
+      </tr>; })}</tbody>
+    </table></div></div>}
+  </Modal>;
+}
+
+/* ============================ export ordine ============================ */
+function esportaOrdineExcel(o){
+  const t = ordineTot(o);
+  const head = [...TEMPLATE_HEAD, "COSTO UNITARIO", "COSTO TOTALE"];
+  const body = (o.righe||[]).map(r => {
+    const rt = rigaTot(r);
+    return [r.descrizione, r.fornitore, r.categoria, r.um, n(r.prezzo), Math.round(parseIva(r.iva)*10000)/100, n(r.quantita), r.note, rt.costoUnitario, rt.totale];
+  });
+  const aoa = [
+    ["ORDINE", o.numero || "", "", "", "", "", "", "", "", ""],
+    ["Titolo", o.titolo || ""], ["Fornitore", o.fornitore || ""], ["Evento", o.evento || ""],
+    ["Data", dmy(o.data)], ["Consegna prevista", dmy(o.dataConsegna)], ["Stato", o.stato || ""],
+    ["Note", o.note || ""], [],
+    head, ...body, [],
+    ["", "", "", "", "", "", "", "", "Imponibile", t.imponibile],
+    ["", "", "", "", "", "", "", "", "IVA", t.iva],
+    ["", "", "", "", "", "", "", "", "Totale", t.totale]
+  ];
+  aoaToFile([{name:"ORDINE", cols:[38,16,16,8,16,8,12,24,16,16], aoa}], "ordine_"+slug(o.titolo || o.numero)+".xlsx");
+}
+function esportaOrdinePdf(o){
+  const doc = pdfDoc("p");
+  const t = ordineTot(o);
+  let y = pdfHead(doc, o.titolo || "Ordine " + (o.numero||""), "Ordine fornitore n. " + (o.numero || "—"), [
+    ["Fornitore", o.fornitore || "—"], ["Data ordine", dmy(o.data) || "—"], ["Consegna", dmy(o.dataConsegna) || "—"],
+    ["Evento", o.evento || "—"], ["Stato", o.stato || "—"], ["Righe", String(t.righe)]
+  ]);
+  y = pdfTable(doc,
+    ["Articolo","Fornitore","UM","Imp. unit.","IVA","Qtà","Costo unit.","Costo tot."],
+    (o.righe||[]).map(r => { const rt = rigaTot(r); return [
+      r.descrizione, r.fornitore || "", r.um || "", num(r.prezzo,4), pct(parseIva(r.iva)),
+      num(r.quantita,0), num(rt.costoUnitario,4), num(rt.totale,2)]; }),
+    y + 4,
+    {columnStyles:{0:{cellWidth:56},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right",fontStyle:"bold"}}}
+  );
+  doc.autoTable({
+    body:[["Imponibile", num(t.imponibile,2)+" EUR"],["IVA", num(t.iva,2)+" EUR"],["Totale", num(t.totale,2)+" EUR"]],
+    startY: y + 6, theme:"plain", margin:{left:120,right:14},
+    styles:{fontSize:9.5, cellPadding:1.6},
+    columnStyles:{0:{fontStyle:"bold"},1:{halign:"right"}},
+    didParseCell: d => { if (d.row.index === 2){ d.cell.styles.fontSize = 11; d.cell.styles.fillColor = [246,236,214]; } }
+  });
+  if (o.note){
+    const yy = doc.lastAutoTable.finalY + 8;
+    doc.setFontSize(9); doc.setTextColor(110,115,120); doc.text("Note", 14, yy);
+    doc.setTextColor(30,35,42); doc.text(doc.splitTextToSize(o.note, 180), 14, yy + 5);
+  }
+  pdfFooter(doc);
+  doc.save("ordine_"+slug(o.titolo || o.numero)+".pdf");
+}
+function esportaElencoOrdini(ordini){
+  const aoa = [["NUMERO","TITOLO","FORNITORE","EVENTO","DATA","CONSEGNA","STATO","RIGHE","IMPONIBILE","IVA","TOTALE"]];
+  ordini.forEach(o => { const t = ordineTot(o);
+    aoa.push([o.numero, o.titolo, o.fornitore, o.evento, dmy(o.data), dmy(o.dataConsegna), o.stato, t.righe, t.imponibile, t.iva, t.totale]); });
+  const righe = [["ORDINE","ARTICOLO","FORNITORE","UM","IMPORTO UNITARIO","IVA %","QUANTITÀ","COSTO UNITARIO","COSTO TOTALE"]];
+  ordini.forEach(o => (o.righe||[]).forEach(r => { const rt = rigaTot(r);
+    righe.push([o.titolo || o.numero, r.descrizione, r.fornitore, r.um, n(r.prezzo), Math.round(parseIva(r.iva)*10000)/100, n(r.quantita), rt.costoUnitario, rt.totale]); }));
+  aoaToFile([{name:"ORDINI", cols:[12,30,18,20,12,12,12,8,14,14,14], aoa},
+             {name:"RIGHE", cols:[26,36,18,8,16,8,12,16,16], aoa:righe}], "elenco_ordini.xlsx");
+}
+
+/* ============================ ARTICOLI ============================ */
+function Articoli({ctx}){
+  const {articoli, setArticoli, fornNomi, categorie, toast} = ctx;
+  const [q, setQ] = useState("");
+  const [fCat, setFCat] = useState("");
+  const [fForn, setFForn] = useState("");
+  const [del, setDel] = useState(null);
+  const [imp, setImp] = useState(false);
+  const fileRef = useRef(null);
+
+  const lista = articoli.filter(a => byText(q, a.descrizione, a.codice, a.fornitore, a.categoria)
+    && (!fCat || a.categoria === fCat) && (!fForn || a.fornitore === fForn));
+
+  const set = (id, p) => setArticoli(l => l.map(a => a.id === id ? {...a, ...p} : a));
+  const aggiungi = () => {
+    const a = {id:uid(), codice:"", descrizione:"Nuovo articolo", categoria:fCat||"", fornitore:fForn||"", um:"pz",
+               prezzo:0, iva:0.22, contenuto:1, umBase:"pz", prezzoVendita:0, scortaMin:0, cespite:false, note:"", attivo:true};
+    setArticoli(l => [a, ...l]);
+  };
+  const importa = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try{
+      const wb = await readWorkbook(f);
+      const res = parseRows(sheetRows(wb, wb.SheetNames[0]));
+      if (res.error){ toast(res.error, "err"); return; }
+      const idx = {}; articoli.forEach(a => idx[norm(a.descrizione)] = a);
+      let nuovi = 0, agg = 0;
+      const next = [...articoli];
+      res.rows.forEach(r => {
+        const ex = idx[norm(r.descrizione)];
+        if (ex){
+          const i = next.findIndex(a => a.id === ex.id);
+          next[i] = {...next[i],
+            fornitore: r.fornitore || next[i].fornitore, categoria: r.categoria || next[i].categoria,
+            um: r.um || next[i].um, prezzo: r.prezzo || next[i].prezzo,
+            iva: r.iva === null ? next[i].iva : r.iva,
+            contenuto: r.contenuto || next[i].contenuto,
+            umBase: r.umBase || next[i].umBase,
+            prezzoVendita: r.prezzoVendita || next[i].prezzoVendita};
+          agg++;
+        } else {
+          next.push({id:uid(), codice:r.codice||"", descrizione:r.descrizione, categoria:r.categoria, fornitore:r.fornitore,
+            um:r.um||"pz", prezzo:r.prezzo, iva:r.iva === null ? 0.22 : r.iva, contenuto:r.contenuto||1, umBase:r.umBase||r.um||"pz",
+            prezzoVendita:r.prezzoVendita||0, scortaMin:0, cespite:false, note:r.note||"", attivo:true});
+          nuovi++;
+        }
+      });
+      setArticoli(next);
+      toast(nuovi+" articoli nuovi · "+agg+" aggiornati", "ok");
+    }catch(err){ toast("File non leggibile: "+err.message, "err"); }
+    e.target.value = "";
+  };
+  const esporta = () => {
+    const aoa = [["CODICE","ARTICOLO","CATEGORIA","FORNITORE","UM","IMPORTO UNITARIO","IVA %","CONTENUTO","UM BASE","COSTO UNITARIO","COSTO PER UM BASE","PREZZO VENDITA","SCORTA MINIMA","CESPITE","NOTE"]];
+    articoli.forEach(a => aoa.push([a.codice, a.descrizione, a.categoria, a.fornitore, a.um, n(a.prezzo),
+      Math.round(parseIva(a.iva)*10000)/100, n(a.contenuto)||1, a.umBase||a.um, costoUn(a), costoBase(a),
+      n(a.prezzoVendita), n(a.scortaMin), a.cespite?"SI":"", a.note]));
+    aoaToFile([{name:"ARTICOLI", cols:[12,38,18,18,8,16,8,12,10,16,18,16,14,10,24], aoa}], "articoli.xlsx");
+  };
+
+  return <>
+    <Top title="Articoli" hint={articoli.length + " articoli in anagrafica"}>
+      <button className="btn" onClick={templateArticoli}>Modello</button>
+      <button className="btn" onClick={()=>fileRef.current.click()}>Importa Excel</button>
+      <button className="btn" onClick={esporta}>Esporta Excel</button>
+      <button className="btn gold" onClick={aggiungi}>Nuovo articolo</button>
+      <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{display:"none"}} onChange={importa}/>
+    </Top>
+    <div className="wrap">
+      <div className="toolbar">
+        <div className="search"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Cerca articolo, codice, fornitore…"/></div>
+        <Sel value={fCat} onChange={setFCat} options={categorie} placeholder="Tutte le categorie" style={{width:180}}/>
+        <Sel value={fForn} onChange={setFForn} options={fornNomi} placeholder="Tutti i fornitori" style={{width:180}}/>
+        <div className="spacer"/>
+        <span className="small muted">{lista.length} risultati</span>
+      </div>
+
+      <div className="card">
+        {lista.length === 0
+          ? <Empty action={<div className="btnrow"><button className="btn gold" onClick={aggiungi}>Nuovo articolo</button><button className="btn" onClick={()=>fileRef.current.click()}>Importa da Excel</button></div>}>
+              Nessun articolo.
+            </Empty>
+          : <div className="scroll"><table>
+            <thead><tr>
+              <th style={{width:88}}>Codice</th><th style={{minWidth:220}}>Articolo</th><th style={{minWidth:130}}>Categoria</th>
+              <th style={{minWidth:130}}>Fornitore</th><th style={{width:58}}>UM</th>
+              <th className="t-right" style={{width:100}}>Imp. unit.</th><th className="t-right" style={{width:66}}>IVA</th>
+              <th className="t-right" style={{width:96}}>Costo unit.</th>
+              <th className="t-right" style={{width:86}}>Contenuto</th><th style={{width:64}}>UM base</th>
+              <th className="t-right" style={{width:100}}>Costo/UM base</th>
+              <th className="t-right" style={{width:92}}>Pr. vendita</th><th className="t-right" style={{width:78}}>Scorta min</th>
+              <th className="t-center" style={{width:64}}>Cespite</th><th style={{width:40}}></th>
+            </tr></thead>
+            <tbody>{lista.map(a => <tr key={a.id}>
+              <td><input className="cellinput" value={a.codice||""} onChange={e=>set(a.id,{codice:e.target.value})}/></td>
+              <td><input className="cellinput" value={a.descrizione||""} onChange={e=>set(a.id,{descrizione:e.target.value})}/></td>
+              <td><input className="cellinput" list="cat-list" value={a.categoria||""} onChange={e=>set(a.id,{categoria:e.target.value})}/></td>
+              <td><input className="cellinput" list="forn-list" value={a.fornitore||""} onChange={e=>set(a.id,{fornitore:e.target.value})}/></td>
+              <td><input className="cellinput" list="um-list" value={a.um||""} onChange={e=>set(a.id,{um:e.target.value})}/></td>
+              <td><Num className="cellinput n" value={a.prezzo} onChange={v=>set(a.id,{prezzo:v})}/></td>
+              <td><Num className="cellinput n" value={Math.round(parseIva(a.iva)*10000)/100} onChange={v=>set(a.id,{iva:parseIva(v)})}/></td>
+              <td className="t-right num muted">{num(costoUn(a),4)}</td>
+              <td><Num className="cellinput n" value={a.contenuto} onChange={v=>set(a.id,{contenuto:v})}/></td>
+              <td><input className="cellinput" list="um-list" value={a.umBase||""} onChange={e=>set(a.id,{umBase:e.target.value})}/></td>
+              <td className="t-right num">{num(costoBase(a),4)}</td>
+              <td><Num className="cellinput n" value={a.prezzoVendita} onChange={v=>set(a.id,{prezzoVendita:v})}/></td>
+              <td><Num className="cellinput n" value={a.scortaMin} onChange={v=>set(a.id,{scortaMin:v})}/></td>
+              <td className="t-center"><input type="checkbox" style={{width:"auto"}} checked={!!a.cespite} onChange={e=>set(a.id,{cespite:e.target.checked})}/></td>
+              <td className="t-right"><button className="icobtn del" onClick={()=>setDel(a)}>🗑</button></td>
+            </tr>)}</tbody>
+          </table></div>}
+      </div>
+      <p className="small muted" style={{marginTop:10,maxWidth:720}}>
+        <strong>Contenuto</strong> e <strong>UM base</strong> servono ai calcoli di marginalità: una bottiglia da 1 litro ha contenuto 1 e UM base “l”, un cartone di salsiccia da 1&nbsp;kg ha contenuto 1000 e UM base “g”.
+        Il costo per UM base è quello usato nelle ricette.
+      </p>
+      <datalist id="cat-list">{categorie.map(c => <option key={c} value={c}/>)}</datalist>
+      <datalist id="forn-list">{fornNomi.map(f => <option key={f} value={f}/>)}</datalist>
+      <datalist id="um-list">{UM_LIST.map(u => <option key={u} value={u}/>)}</datalist>
+    </div>
+    {del && <Confirm text={`Elimini "${del.descrizione}" dall'anagrafica?`} onClose={()=>setDel(null)}
+      onYes={()=>{ setArticoli(l => l.filter(x => x.id !== del.id)); toast("Articolo eliminato"); }}/>}
+  </>;
+}
+
+/* ============================ MARGINALITÀ ============================ */
+function Margini({ctx}){
+  const {prodotti, setProdotti, articoli, artById, toast} = ctx;
+  const [q, setQ] = useState("");
+  const [apri, setApri] = useState(null);
+  const [del, setDel] = useState(null);
+  const [ord, setOrd] = useState("margine");
+
+  const set = (id, p) => setProdotti(l => l.map(x => x.id === id ? {...x, ...p} : x));
+  const aggiungi = () => {
+    const p = {id:uid(), nome:"Nuovo prodotto", categoria:"", prezzoVendita:0, ivaVendita:0, stima:0, note:"", componenti:[]};
+    setProdotti(l => [p, ...l]); setApri(p.id);
+  };
+  const cats = [...new Set(prodotti.map(p => p.categoria).filter(Boolean))].sort();
+
+  const righe = prodotti.filter(p => byText(q, p.nome, p.categoria))
+    .map(p => ({p, m: margini(p, artById)}))
+    .sort((a,b) => ord === "margine" ? a.m.pctPv - b.m.pctPv
+                 : ord === "margineDesc" ? b.m.pctPv - a.m.pctPv
+                 : ord === "contributo" ? (b.m.mu * n(b.p.stima)) - (a.m.mu * n(a.p.stima))
+                 : String(a.p.nome).localeCompare(b.p.nome));
+
+  const tot = righe.reduce((s,r) => { s.ricavo += r.m.ricavo * n(r.p.stima); s.costo += r.m.costo * n(r.p.stima); s.mu += r.m.mu * n(r.p.stima); return s; }, {ricavo:0,costo:0,mu:0});
+  const conStima = righe.some(r => n(r.p.stima) > 0);
+
+  const esportaExcel = () => {
+    const aoa = [["PRODOTTO","CATEGORIA","COSTO","PREZZO VENDITA","IVA VENDITA %","RICAVO NETTO","MARGINE UNITARIO","MARGINE %","RICARICO %","QTÀ STIMATA","MARGINE TOTALE"]];
+    righe.forEach(({p,m}) => aoa.push([p.nome, p.categoria, m.costo, m.pv, Math.round(parseIva(p.ivaVendita)*10000)/100, m.ricavo, m.mu, m.pctPv, m.ricarico, n(p.stima), m.mu*n(p.stima)]));
+    const dist = [["PRODOTTO","COMPONENTE","QUANTITÀ","UM BASE","COSTO/UM BASE","COSTO RIGA"]];
+    prodotti.forEach(p => (p.componenti||[]).forEach(c => {
+      const a = artById[c.articoloId];
+      const cu = c.costoManuale != null && c.costoManuale !== "" ? n(c.costoManuale)/(n(c.qta)||1) : (a ? costoBase(a) : 0);
+      dist.push([p.nome, a ? a.descrizione : c.descrizione, n(c.qta), a ? (a.umBase||a.um) : "", cu, cu*n(c.qta)]);
+    }));
+    aoaToFile([{name:"MARGINALITÀ", cols:[32,16,12,14,14,14,16,12,12,12,16], aoa},
+               {name:"DISTINTE", cols:[32,34,12,10,16,14], aoa:dist}], "marginalita.xlsx");
+  };
+  const esportaPdf = () => {
+    const doc = pdfDoc("l");
+    let y = pdfHead(doc, "Marginalità prodotti", "Costi di distinta e prezzi di vendita", [
+      ["Prodotti", String(righe.length)],
+      ["Margine medio", righe.length ? pct(righe.reduce((s,r)=>s+r.m.pctPv,0)/righe.length) : "—"],
+      ["Margine su stima", conStima ? num(tot.mu,2)+" EUR" : "—"]
+    ]);
+    pdfTable(doc, ["Prodotto","Categoria","Costo","Prezzo","Margine u.","Margine %","Ricarico","Qtà stimata","Margine tot."],
+      righe.map(({p,m}) => [p.nome, p.categoria || "", num(m.costo,3), num(m.pv,2), num(m.mu,3), pct(m.pctPv), pct(m.ricarico), num(p.stima,0), num(m.mu*n(p.stima),2)]),
+      y + 4, {columnStyles:{2:{halign:"right"},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right"},8:{halign:"right",fontStyle:"bold"}}});
+    pdfFooter(doc);
+    doc.save("marginalita.pdf");
+  };
+
+  const aperto = prodotti.find(p => p.id === apri);
+
+  return <>
+    <Top title="Marginalità" hint={prodotti.length + " prodotti a listino"}>
+      <button className="btn" onClick={esportaExcel}>Excel</button>
+      <button className="btn" onClick={esportaPdf}>PDF</button>
+      <button className="btn gold" onClick={aggiungi}>Nuovo prodotto</button>
+    </Top>
+    <div className="wrap">
+      <div className="kpis" style={{marginBottom:14}}>
+        <div className="kpi acc"><div className="lab">Margine medio</div><div className="val">{righe.length ? pct(righe.reduce((s,r)=>s+r.m.pctPv,0)/righe.length) : "—"}</div><div className="sub">su {righe.length} prodotti</div></div>
+        <div className="kpi"><div className="lab">Ricavo stimato</div><div className="val">{eur(tot.ricavo,0)}</div><div className="sub">quantità × prezzo netto</div></div>
+        <div className="kpi"><div className="lab">Costo stimato</div><div className="val">{eur(tot.costo,0)}</div><div className="sub">materia prima e consumo</div></div>
+        <div className="kpi"><div className="lab">Margine stimato</div><div className="val">{eur(tot.mu,0)}</div><div className="sub">{tot.ricavo ? pct(tot.mu/tot.ricavo) : "—"} sul ricavo</div></div>
+      </div>
+
+      <div className="toolbar">
+        <div className="search"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Cerca prodotto…"/></div>
+        <Sel value={ord} onChange={setOrd} options={[{v:"margine",l:"Margine crescente"},{v:"margineDesc",l:"Margine decrescente"},{v:"contributo",l:"Contributo totale"},{v:"nome",l:"Nome"}]} style={{width:200}}/>
+        <div className="spacer"/>
+        <span className="small muted">Compila “Qtà stimata” per vedere il margine complessivo dell'evento.</span>
+      </div>
+
+      <div className="card">
+        {righe.length === 0
+          ? <Empty action={<button className="btn gold" onClick={aggiungi}>Nuovo prodotto</button>}>Nessun prodotto a listino.</Empty>
+          : <div className="scroll"><table>
+            <thead><tr>
+              <th style={{minWidth:200}}>Prodotto</th><th style={{minWidth:120}}>Categoria</th>
+              <th className="t-right" style={{width:96}}>Costo</th><th className="t-right" style={{width:96}}>Prezzo</th>
+              <th className="t-right" style={{width:76}}>IVA vend.</th><th className="t-right" style={{width:96}}>Margine u.</th>
+              <th style={{width:150}}>Margine %</th><th className="t-right" style={{width:84}}>Ricarico</th>
+              <th className="t-right" style={{width:88}}>Qtà stim.</th><th className="t-right" style={{width:104}}>Margine tot.</th><th style={{width:74}}></th>
+            </tr></thead>
+            <tbody>{righe.map(({p,m}) => <tr key={p.id}>
+              <td><input className="cellinput" value={p.nome||""} onChange={e=>set(p.id,{nome:e.target.value})}/>
+                  <div className="small muted" style={{paddingLeft:5}}>{(p.componenti||[]).length} componenti</div></td>
+              <td><input className="cellinput" list="pcat-list" value={p.categoria||""} onChange={e=>set(p.id,{categoria:e.target.value})}/></td>
+              <td className="t-right num">{num(m.costo,3)}</td>
+              <td><Num className="cellinput n" value={p.prezzoVendita} onChange={v=>set(p.id,{prezzoVendita:v})}/></td>
+              <td><Num className="cellinput n" value={Math.round(parseIva(p.ivaVendita)*10000)/100} onChange={v=>set(p.id,{ivaVendita:parseIva(v)})}/></td>
+              <td className="t-right num"><span className={m.mu>=0?"pos":"neg"}>{num(m.mu,3)}</span></td>
+              <td><div style={{display:"flex",gap:8,alignItems:"center"}}><MarginBar v={m.pctPv}/><span className="num">{m.pv?pct(m.pctPv):"—"}</span></div></td>
+              <td className="t-right num">{m.costo?pct(m.ricarico):"—"}</td>
+              <td><Num className="cellinput n" value={p.stima} onChange={v=>set(p.id,{stima:v})}/></td>
+              <td className="t-right num"><strong>{eur(m.mu*n(p.stima),0)}</strong></td>
+              <td className="t-right">
+                <button className="icobtn" title="Distinta" onClick={()=>setApri(p.id)}>✎</button>
+                <button className="icobtn" title="Duplica" onClick={()=>setProdotti(l=>[{...clone(p), id:uid(), nome:p.nome+" (copia)", componenti:(p.componenti||[]).map(c=>({...c,id:uid()}))}, ...l])}>⧉</button>
+                <button className="icobtn del" onClick={()=>setDel(p)}>🗑</button>
+              </td>
+            </tr>)}</tbody>
+            {conStima && <tfoot><tr>
+              <td colSpan={8}>Totale su quantità stimate</td>
+              <td className="t-right num">{num(righe.reduce((s,r)=>s+n(r.p.stima),0),0)}</td>
+              <td className="t-right num">{eur(tot.mu,0)}</td><td></td>
+            </tr></tfoot>}
+          </table></div>}
+      </div>
+      <datalist id="pcat-list">{cats.map(c => <option key={c} value={c}/>)}</datalist>
+    </div>
+
+    {aperto && <Distinta prodotto={aperto} set={p => set(aperto.id, p)} ctx={ctx} onClose={()=>setApri(null)}/>}
+    {del && <Confirm text={`Elimini "${del.nome}"?`} onClose={()=>setDel(null)}
+      onYes={()=>{ setProdotti(l => l.filter(x => x.id !== del.id)); toast("Prodotto eliminato"); }}/>}
+  </>;
+}
+
+function Distinta({prodotto, set, ctx, onClose}){
+  const {articoli, artById} = ctx;
+  const comp = prodotto.componenti || [];
+  const setComp = f => set({componenti: typeof f === "function" ? f(comp) : f});
+  const m = margini(prodotto, artById);
+
+  return <Modal lg title={"Distinta · " + prodotto.nome} onClose={onClose} footer={<button className="btn pri" onClick={onClose}>Chiudi</button>}>
+    <div className="formgrid" style={{marginBottom:14}}>
+      <Field label="Prodotto"><Txt value={prodotto.nome} onChange={v=>set({nome:v})}/></Field>
+      <Field label="Categoria"><Txt value={prodotto.categoria} onChange={v=>set({categoria:v})}/></Field>
+      <Field label="Prezzo di vendita"><Num value={prodotto.prezzoVendita} onChange={v=>set({prezzoVendita:v})}/></Field>
+      <Field label="IVA vendita %"><Num value={Math.round(parseIva(prodotto.ivaVendita)*10000)/100} onChange={v=>set({ivaVendita:parseIva(v)})}/></Field>
+      <Field label="Quantità stimata"><Num value={prodotto.stima} onChange={v=>set({stima:v})}/></Field>
+    </div>
+
+    <div className="btnrow" style={{marginBottom:10}}>
+      <select value="" style={{maxWidth:420}} onChange={e=>{
+        const a = artById[e.target.value]; if(!a) return;
+        setComp(c => [...c, {id:uid(), articoloId:a.id, descrizione:a.descrizione, qta:1, costoManuale:null}]);
+        e.target.value="";
+      }}>
+        <option value="">Aggiungi componente dall'anagrafica…</option>
+        {articoli.map(a => <option key={a.id} value={a.id}>{a.descrizione} — {num(costoBase(a),4)} €/{a.umBase||a.um}</option>)}
+      </select>
+      <button className="btn sm" onClick={()=>setComp(c => [...c, {id:uid(), articoloId:"", descrizione:"Voce di costo", qta:1, costoManuale:0}])}>+ Costo manuale</button>
+    </div>
+
+    {comp.length === 0
+      ? <Empty>Nessun componente: il costo del prodotto è zero.</Empty>
+      : <table>
+        <thead><tr><th>Componente</th><th className="t-right" style={{width:100}}>Quantità</th><th style={{width:70}}>UM</th>
+          <th className="t-right" style={{width:110}}>Costo/UM</th><th className="t-right" style={{width:100}}>Costo</th><th style={{width:36}}></th></tr></thead>
+        <tbody>{comp.map(c => {
+          const a = artById[c.articoloId];
+          const manuale = c.costoManuale !== null && c.costoManuale !== undefined && c.costoManuale !== "";
+          const cu = manuale ? n(c.costoManuale)/(n(c.qta)||1) : (a ? costoBase(a) : 0);
+          const costo = manuale ? n(c.costoManuale) : cu * n(c.qta);
+          return <tr key={c.id}>
+            <td>{a ? a.descrizione : <input className="cellinput" value={c.descrizione||""} onChange={e=>setComp(l=>l.map(x=>x.id===c.id?{...x,descrizione:e.target.value}:x))}/>}</td>
+            <td><Num className="cellinput n" value={c.qta} onChange={v=>setComp(l=>l.map(x=>x.id===c.id?{...x,qta:v}:x))}/></td>
+            <td className="small muted">{a ? (a.umBase||a.um) : "—"}</td>
+            <td className="t-right">{manuale
+              ? <Num className="cellinput n" value={c.costoManuale} onChange={v=>setComp(l=>l.map(x=>x.id===c.id?{...x,costoManuale:v}:x))}/>
+              : <span className="num muted">{num(cu,4)}</span>}</td>
+            <td className="t-right num"><strong>{num(costo,4)}</strong></td>
+            <td className="t-right"><button className="icobtn del" onClick={()=>setComp(l=>l.filter(x=>x.id!==c.id))}>✕</button></td>
+          </tr>;
+        })}</tbody>
+        <tfoot><tr><td colSpan={4}>Costo del prodotto</td><td className="t-right num">{num(m.costo,4)}</td><td></td></tr></tfoot>
+      </table>}
+
+    <div className="kpis" style={{marginTop:16}}>
+      <div className="kpi"><div className="lab">Ricavo netto</div><div className="val">{eur(m.ricavo)}</div></div>
+      <div className="kpi"><div className="lab">Margine unitario</div><div className="val"><span className={m.mu>=0?"pos":"neg"}>{eur(m.mu)}</span></div></div>
+      <div className="kpi acc"><div className="lab">Margine sul prezzo</div><div className="val">{m.pv?pct(m.pctPv):"—"}</div><div className="sub">ricarico {m.costo?pct(m.ricarico):"—"}</div></div>
+      <div className="kpi"><div className="lab">Margine su {num(prodotto.stima,0)} pezzi</div><div className="val">{eur(m.mu*n(prodotto.stima),0)}</div></div>
+    </div>
+  </Modal>;
+}
+
+/* ============================ MAGAZZINO ============================ */
+const TIPI_MOV = ["Carico","Scarico","Rettifica","Trasferimento"];
+
+function Magazzino({ctx}){
+  const [sub, setSub] = useState("giacenze");
+  const subs = [["giacenze","Giacenze"],["movimenti","Movimenti"],["luoghi","Luoghi di stoccaggio"],["cespiti","Cespiti"]];
+  return <>
+    <Top title="Magazzino" hint="Giacenze per luogo, movimenti e beni durevoli">
+      {subs.map(([k,l]) => <button key={k} className={"btn"+(sub===k?" pri":"")} onClick={()=>setSub(k)}>{l}</button>)}
+    </Top>
+    <div className="wrap">
+      {sub==="giacenze"  && <Giacenze ctx={ctx}/>}
+      {sub==="movimenti" && <Movimenti ctx={ctx}/>}
+      {sub==="luoghi"    && <Luoghi ctx={ctx}/>}
+      {sub==="cespiti"   && <Cespiti ctx={ctx}/>}
+    </div>
+  </>;
+}
+
+function Giacenze({ctx}){
+  const {articoli, artById, ubicazioni, ubById, movimenti, setMovimenti, toast} = ctx;
+  const [q, setQ] = useState("");
+  const [fUb, setFUb] = useState("");
+  const [soloDisp, setSoloDisp] = useState(true);
+  const [rett, setRett] = useState(null);
+  const fileRef = useRef(null);
+
+  const gm = giacenzeMap(movimenti);
+  const righe = Object.entries(gm).map(([k,qta]) => {
+    const [aid, uid_] = k.split("|");
+    const a = artById[aid];
+    return a ? {key:k, a, u: ubById[uid_], qta, valore: costoUn(a)*qta} : null;
+  }).filter(Boolean)
+    .filter(r => byText(q, r.a.descrizione, r.a.categoria, r.a.fornitore))
+    .filter(r => !fUb || (r.u && r.u.id === fUb))
+    .filter(r => !soloDisp || Math.abs(r.qta) > 0.0001)
+    .sort((x,y) => x.a.descrizione.localeCompare(y.a.descrizione));
+  const valTot = righe.reduce((s,r) => s + r.valore, 0);
+
+  const esporta = () => {
+    const aoa = [["ARTICOLO","CATEGORIA","FORNITORE","UBICAZIONE","GIACENZA","UM","COSTO UNITARIO","VALORE","SCORTA MINIMA"]];
+    righe.forEach(r => aoa.push([r.a.descrizione, r.a.categoria, r.a.fornitore, r.u?r.u.nome:"—", r.qta, r.a.um, costoUn(r.a), r.valore, n(r.a.scortaMin)]));
+    aoa.push([], ["","","","TOTALE","","","",valTot,""]);
+    aoaToFile([{name:"GIACENZE", cols:[36,16,18,20,12,8,16,14,14], aoa}], "magazzino.xlsx");
+  };
+  const esportaPdf = () => {
+    const doc = pdfDoc("l");
+    const y = pdfHead(doc, "Situazione di magazzino", "Giacenze per luogo di stoccaggio", [
+      ["Posizioni", String(righe.length)], ["Valore totale", num(valTot,2)+" EUR"], ["Data", dmy(today())]
+    ]);
+    pdfTable(doc, ["Articolo","Categoria","Ubicazione","Giacenza","UM","Costo unit.","Valore"],
+      righe.map(r => [r.a.descrizione, r.a.categoria||"", r.u?r.u.nome:"—", num(r.qta,2), r.a.um||"", num(costoUn(r.a),4), num(r.valore,2)]),
+      y + 4, {columnStyles:{3:{halign:"right"},5:{halign:"right"},6:{halign:"right",fontStyle:"bold"}}});
+    pdfFooter(doc); doc.save("magazzino.pdf");
+  };
+  const importa = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try{
+      const wb = await readWorkbook(f);
+      const res = parseRows(sheetRows(wb, wb.SheetNames[0]));
+      if (res.error){ toast(res.error,"err"); return; }
+      const idxA = {}; articoli.forEach(a => idxA[norm(a.descrizione)] = a);
+      const idxU = {}; ubicazioni.forEach(u => idxU[norm(u.nome)] = u);
+      const movs = [];
+      res.rows.forEach(r => {
+        const a = idxA[norm(r.descrizione)];
+        const qta = r.giacenza || r.quantita;
+        if (!a || !qta) return;
+        const u = idxU[norm(r.ubicazione)] || ubicazioni[0];
+        movs.push({id:uid(), data:today(), tipo:"Rettifica", articoloId:a.id, quantita:qta,
+                   ubicazioneId:u?u.id:"", valoreUnitario:costoUn(a), note:"Import giacenze"});
+      });
+      if (!movs.length){ toast("Nessuna riga abbinata all'anagrafica articoli","err"); return; }
+      setMovimenti(l => [...movs, ...l]);
+      toast(movs.length+" giacenze importate","ok");
+    }catch(err){ toast("File non leggibile: "+err.message,"err"); }
+    e.target.value = "";
+  };
+
+  return <>
+    <div className="kpis" style={{marginBottom:14}}>
+      <div className="kpi acc"><div className="lab">Valore di magazzino</div><div className="val">{eur(valTot,0)}</div><div className="sub">{righe.length} posizioni</div></div>
+      <div className="kpi"><div className="lab">Luoghi</div><div className="val">{ubicazioni.length}</div><div className="sub">{ubicazioni.map(u=>u.nome).slice(0,2).join(", ") || "nessuno"}</div></div>
+      <div className="kpi"><div className="lab">Movimenti</div><div className="val">{movimenti.length}</div></div>
+    </div>
+    <div className="toolbar">
+      <div className="search"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Cerca articolo…"/></div>
+      <Sel value={fUb} onChange={setFUb} options={ubicazioni.map(u=>({v:u.id,l:u.nome}))} placeholder="Tutti i luoghi" style={{width:180}}/>
+      <label className="small" style={{display:"flex",gap:6,alignItems:"center"}}>
+        <input type="checkbox" style={{width:"auto"}} checked={soloDisp} onChange={e=>setSoloDisp(e.target.checked)}/> Solo con giacenza
+      </label>
+      <div className="spacer"/>
+      <button className="btn" onClick={templateMagazzino}>Modello</button>
+      <button className="btn" onClick={()=>fileRef.current.click()}>Importa</button>
+      <button className="btn" onClick={esporta}>Excel</button>
+      <button className="btn" onClick={esportaPdf}>PDF</button>
+      <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{display:"none"}} onChange={importa}/>
+    </div>
+
+    <div className="card">
+      {righe.length === 0
+        ? <Empty>Nessuna giacenza: carica un ordine ricevuto oppure importa le giacenze iniziali.</Empty>
+        : <div className="scroll"><table>
+          <thead><tr><th>Articolo</th><th>Categoria</th><th>Luogo</th><th className="t-right">Giacenza</th><th>UM</th>
+            <th className="t-right">Scorta min</th><th className="t-right">Costo unit.</th><th className="t-right">Valore</th><th style={{width:40}}></th></tr></thead>
+          <tbody>{righe.map(r => <tr key={r.key}>
+            <td>{r.a.descrizione}{r.a.cespite && <span className="tag n" style={{marginLeft:6,fontSize:10}}>cespite</span>}</td>
+            <td className="small">{r.a.categoria || "—"}</td>
+            <td>{r.u ? r.u.nome : <span className="muted">non assegnato</span>}</td>
+            <td className="t-right num">{n(r.a.scortaMin) > 0 && r.qta < n(r.a.scortaMin)
+              ? <span className="neg">{num(r.qta,2)}</span> : num(r.qta,2)}</td>
+            <td className="small">{r.a.um}</td>
+            <td className="t-right num muted">{n(r.a.scortaMin) ? num(r.a.scortaMin,0) : "—"}</td>
+            <td className="t-right num muted">{num(costoUn(r.a),4)}</td>
+            <td className="t-right num"><strong>{eur(r.valore)}</strong></td>
+            <td className="t-right"><button className="icobtn" title="Rettifica" onClick={()=>setRett(r)}>±</button></td>
+          </tr>)}</tbody>
+          <tfoot><tr><td colSpan={7}>Totale</td><td className="t-right num">{eur(valTot)}</td><td></td></tr></tfoot>
+        </table></div>}
+    </div>
+
+    {rett && <RettificaModal riga={rett} onClose={()=>setRett(null)} onSave={(nuova, nota) => {
+      const delta = nuova - rett.qta;
+      if (!delta){ setRett(null); return; }
+      setMovimenti(l => [{id:uid(), data:today(), tipo:"Rettifica", articoloId:rett.a.id, quantita:delta,
+        ubicazioneId:rett.u?rett.u.id:"", valoreUnitario:costoUn(rett.a), note:nota||"Rettifica inventario"}, ...l]);
+      setRett(null); toast("Giacenza aggiornata","ok");
+    }}/>}
+  </>;
+}
+
+function RettificaModal({riga, onClose, onSave}){
+  const [v, setV] = useState(riga.qta);
+  const [nota, setNota] = useState("");
+  return <Modal title={"Rettifica · " + riga.a.descrizione} onClose={onClose} footer={<>
+    <button className="btn" onClick={onClose}>Annulla</button>
+    <button className="btn gold" onClick={()=>onSave(n(v), nota)}>Salva giacenza</button>
+  </>}>
+    <div className="formgrid">
+      <Field label="Luogo"><input value={riga.u?riga.u.nome:"non assegnato"} disabled/></Field>
+      <Field label="Giacenza rilevata"><Num value={v} onChange={setV}/></Field>
+      <Field label="Nota"><Txt value={nota} onChange={setNota} placeholder="es. inventario del 12/09"/></Field>
+    </div>
+    <p className="small muted">Registro la differenza rispetto a {num(riga.qta,2)} come movimento di rettifica, così lo storico resta tracciato.</p>
+  </Modal>;
+}
+
+function Movimenti({ctx}){
+  const {movimenti, setMovimenti, articoli, artById, ubicazioni, ubById, ordini, toast} = ctx;
+  const [q, setQ] = useState("");
+  const [nuovo, setNuovo] = useState(null);
+  const [del, setDel] = useState(null);
+
+  const lista = movimenti
+    .filter(m => { const a = artById[m.articoloId]; return byText(q, a?a.descrizione:"", m.note, m.tipo); })
+    .sort((a,b) => String(b.data).localeCompare(String(a.data)));
+
+  const vuoto = () => ({id:uid(), data:today(), tipo:"Carico", articoloId:"", quantita:1, ubicazioneId:ubicazioni[0]?ubicazioni[0].id:"", ubicazioneDest:"", valoreUnitario:0, note:""});
+  const esporta = () => {
+    const aoa = [["DATA","TIPO","ARTICOLO","QUANTITÀ","LUOGO","LUOGO DESTINAZIONE","VALORE UNITARIO","VALORE","ORDINE","NOTE"]];
+    lista.forEach(m => { const a = artById[m.articoloId]; const o = ordini.find(x=>x.id===m.ordineId);
+      aoa.push([dmy(m.data), m.tipo, a?a.descrizione:"—", n(m.quantita), ubById[m.ubicazioneId]?ubById[m.ubicazioneId].nome:"", 
+                ubById[m.ubicazioneDest]?ubById[m.ubicazioneDest].nome:"", n(m.valoreUnitario), n(m.valoreUnitario)*n(m.quantita), o?(o.titolo||o.numero):"", m.note]); });
+    aoaToFile([{name:"MOVIMENTI", cols:[12,14,36,12,18,18,16,14,22,26], aoa}], "movimenti_magazzino.xlsx");
+  };
+
+  return <>
+    <div className="toolbar">
+      <div className="search"><input value={q} onChange={e=>setQ(e.target.value)} placeholder="Cerca movimento…"/></div>
+      <div className="spacer"/>
+      <button className="btn" onClick={esporta}>Esporta Excel</button>
+      <button className="btn gold" onClick={()=>setNuovo(vuoto())}>Nuovo movimento</button>
+    </div>
+    <div className="card">
+      {lista.length === 0
+        ? <Empty action={<button className="btn gold" onClick={()=>setNuovo(vuoto())}>Registra un movimento</button>}>Nessun movimento registrato.</Empty>
+        : <div className="scroll"><table>
+          <thead><tr><th style={{width:96}}>Data</th><th style={{width:120}}>Tipo</th><th>Articolo</th>
+            <th className="t-right" style={{width:96}}>Quantità</th><th>Luogo</th><th className="t-right" style={{width:104}}>Valore</th><th>Note</th><th style={{width:40}}></th></tr></thead>
+          <tbody>{lista.map(m => { const a = artById[m.articoloId]; return <tr key={m.id}>
+            <td className="num">{dmy(m.data)}</td>
+            <td><span className={"tag "+(m.tipo==="Carico"?"g":m.tipo==="Scarico"?"r":"n")}>{m.tipo}</span></td>
+            <td>{a ? a.descrizione : <span className="muted">articolo rimosso</span>}</td>
+            <td className="t-right num">{m.tipo==="Scarico"?"−":"+"}{num(m.quantita,2)}</td>
+            <td className="small">{ubById[m.ubicazioneId] ? ubById[m.ubicazioneId].nome : "—"}{m.ubicazioneDest && ubById[m.ubicazioneDest] ? " → "+ubById[m.ubicazioneDest].nome : ""}</td>
+            <td className="t-right num muted">{eur(n(m.valoreUnitario)*n(m.quantita))}</td>
+            <td className="small muted">{m.note}</td>
+            <td className="t-right"><button className="icobtn del" onClick={()=>setDel(m)}>🗑</button></td>
+          </tr>; })}</tbody>
+        </table></div>}
+    </div>
+
+    {nuovo && <Modal title="Nuovo movimento" onClose={()=>setNuovo(null)} footer={<>
+      <button className="btn" onClick={()=>setNuovo(null)}>Annulla</button>
+      <button className="btn gold" disabled={!nuovo.articoloId} onClick={()=>{ setMovimenti(l=>[nuovo,...l]); setNuovo(null); toast("Movimento registrato","ok"); }}>Salva</button>
+    </>}>
+      <div className="formgrid">
+        <Field label="Data"><input type="date" value={nuovo.data} onChange={e=>setNuovo({...nuovo, data:e.target.value})}/></Field>
+        <Field label="Tipo"><Sel value={nuovo.tipo} onChange={v=>setNuovo({...nuovo, tipo:v})} options={TIPI_MOV}/></Field>
+        <Field label="Articolo" style={{gridColumn:"span 2"}}>
+          <Sel value={nuovo.articoloId} placeholder="Scegli…" options={articoli.map(a=>({v:a.id,l:a.descrizione}))}
+            onChange={v=>{ const a = artById[v]; setNuovo({...nuovo, articoloId:v, valoreUnitario: a?costoUn(a):0}); }}/>
+        </Field>
+        <Field label="Quantità"><Num value={nuovo.quantita} onChange={v=>setNuovo({...nuovo, quantita:v})}/></Field>
+        <Field label="Luogo"><Sel value={nuovo.ubicazioneId} placeholder="—" options={ubicazioni.map(u=>({v:u.id,l:u.nome}))} onChange={v=>setNuovo({...nuovo, ubicazioneId:v})}/></Field>
+        {nuovo.tipo === "Trasferimento" && <Field label="Verso"><Sel value={nuovo.ubicazioneDest} placeholder="—" options={ubicazioni.map(u=>({v:u.id,l:u.nome}))} onChange={v=>setNuovo({...nuovo, ubicazioneDest:v})}/></Field>}
+        <Field label="Valore unitario"><Num value={nuovo.valoreUnitario} onChange={v=>setNuovo({...nuovo, valoreUnitario:v})}/></Field>
+        <Field label="Note" style={{gridColumn:"span 2"}}><Txt value={nuovo.note} onChange={v=>setNuovo({...nuovo, note:v})}/></Field>
+      </div>
+    </Modal>}
+    {del && <Confirm text="Elimini questo movimento? Le giacenze verranno ricalcolate." onClose={()=>setDel(null)}
+      onYes={()=>{ setMovimenti(l => l.filter(x => x.id !== del.id)); toast("Movimento eliminato"); }}/>}
+  </>;
+}
+
+function Luoghi({ctx}){
+  const {ubicazioni, setUbicazioni, movimenti, artById, toast} = ctx;
+  const [del, setDel] = useState(null);
+  const gm = giacenzeMap(movimenti);
+  const valore = uId => Object.entries(gm).filter(([k]) => k.endsWith("|"+uId))
+    .reduce((s,[k,q]) => { const a = artById[k.split("|")[0]]; return s + (a ? costoUn(a)*q : 0); }, 0);
+  const set = (id,p) => setUbicazioni(l => l.map(u => u.id===id?{...u,...p}:u));
+
+  return <>
+    <div className="toolbar">
+      <span className="small muted">I luoghi di stoccaggio si usano nei carichi, negli inventari e nei trasferimenti.</span>
+      <div className="spacer"/>
+      <button className="btn gold" onClick={()=>setUbicazioni(l => [...l, {id:uid(), nome:"Nuovo luogo", tipo:"Magazzino", indirizzo:"", responsabile:"", note:""}])}>Nuovo luogo</button>
+    </div>
+    <div className="card">
+      {ubicazioni.length === 0
+        ? <Empty>Nessun luogo di stoccaggio.</Empty>
+        : <table>
+          <thead><tr><th style={{minWidth:180}}>Nome</th><th style={{width:150}}>Tipo</th><th>Indirizzo</th><th style={{minWidth:130}}>Responsabile</th><th>Note</th>
+            <th className="t-right" style={{width:120}}>Valore stoccato</th><th style={{width:40}}></th></tr></thead>
+          <tbody>{ubicazioni.map(u => <tr key={u.id}>
+            <td><input className="cellinput" value={u.nome||""} onChange={e=>set(u.id,{nome:e.target.value})}/></td>
+            <td><input className="cellinput" list="tipo-ub" value={u.tipo||""} onChange={e=>set(u.id,{tipo:e.target.value})}/></td>
+            <td><input className="cellinput" value={u.indirizzo||""} onChange={e=>set(u.id,{indirizzo:e.target.value})}/></td>
+            <td><input className="cellinput" value={u.responsabile||""} onChange={e=>set(u.id,{responsabile:e.target.value})}/></td>
+            <td><input className="cellinput" value={u.note||""} onChange={e=>set(u.id,{note:e.target.value})}/></td>
+            <td className="t-right num">{eur(valore(u.id),0)}</td>
+            <td className="t-right"><button className="icobtn del" onClick={()=>setDel(u)}>🗑</button></td>
+          </tr>)}</tbody>
+        </table>}
+    </div>
+    <datalist id="tipo-ub">{["Magazzino","Frigo","Cella","Furgone","Container","Bar","Cucina","Deposito esterno"].map(t => <option key={t} value={t}/>)}</datalist>
+    {del && <Confirm text={`Elimini "${del.nome}"? I movimenti collegati resteranno senza luogo.`} onClose={()=>setDel(null)}
+      onYes={()=>{ setUbicazioni(l => l.filter(u => u.id !== del.id)); toast("Luogo eliminato"); }}/>}
+  </>;
+}
+
+function Cespiti({ctx}){
+  const {articoli, setArticoli, ubicazioni, ubById, toast} = ctx;
+  const lista = articoli.filter(a => a.cespite);
+  const set = (id,p) => setArticoli(l => l.map(a => a.id===id?{...a,...p}:a));
+  const esporta = () => {
+    const aoa = [["CODICE","DESCRIZIONE","CATEGORIA CESPITE","FORNITORE","DATA ACQUISTO","QUANTITÀ","VALORE UNITARIO","VALORE TOTALE","ALIQUOTA AMM. %","CONTO CONTABILE","LUOGO","NOTE"]];
+    lista.forEach(a => aoa.push([a.codice, a.descrizione, a.cespCategoria||"", a.fornitore, dmy(a.cespData), n(a.cespQta)||1,
+      n(a.cespValore)||costoUn(a), (n(a.cespQta)||1)*(n(a.cespValore)||costoUn(a)), n(a.cespAliquota), a.cespConto||"",
+      ubById[a.cespUbicazione]?ubById[a.cespUbicazione].nome:"", a.note||""]));
+    aoaToFile([{name:"CESPITI", cols:[12,36,20,18,14,10,16,16,14,18,18,24], aoa}], "cespiti.xlsx");
+  };
+  const esportaJson = () => {
+    const data = lista.map(a => ({descrizione:a.descrizione, categoria:a.cespCategoria||"", dataAcquisto:a.cespData||"",
+      quantita:n(a.cespQta)||1, valoreUnitario:n(a.cespValore)||costoUn(a),
+      valore:(n(a.cespQta)||1)*(n(a.cespValore)||costoUn(a)), aliquota:n(a.cespAliquota), conto:a.cespConto||"",
+      luogo: ubById[a.cespUbicazione]?ubById[a.cespUbicazione].nome:"", fornitore:a.fornitore||""}));
+    download(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}), "cespiti.json");
+    toast("File pronto per la contabilità","ok");
+  };
+  const totale = lista.reduce((s,a) => s + (n(a.cespQta)||1)*(n(a.cespValore)||costoUn(a)), 0);
+
+  return <>
+    <div className="toolbar">
+      <span className="small muted">Sono cespiti gli articoli con la spunta “Cespite” in anagrafica: attrezzature, frigoriferi, spillatori, gazebo.</span>
+      <div className="spacer"/>
+      <button className="btn" onClick={esportaJson}>JSON per contabilità</button>
+      <button className="btn" onClick={esporta}>Esporta Excel</button>
+    </div>
+    <div className="kpis" style={{marginBottom:14}}>
+      <div className="kpi acc"><div className="lab">Valore dei cespiti</div><div className="val">{eur(totale,0)}</div><div className="sub">{lista.length} beni</div></div>
+    </div>
+    <div className="card">
+      {lista.length === 0
+        ? <Empty>Nessun cespite. Spunta “Cespite” su un articolo in anagrafica per farlo comparire qui.</Empty>
+        : <div className="scroll"><table>
+          <thead><tr><th style={{minWidth:200}}>Bene</th><th style={{minWidth:140}}>Categoria cespite</th><th style={{width:130}}>Data acquisto</th>
+            <th className="t-right" style={{width:76}}>Qtà</th><th className="t-right" style={{width:110}}>Valore unit.</th>
+            <th className="t-right" style={{width:110}}>Valore</th><th className="t-right" style={{width:90}}>Aliquota</th>
+            <th style={{width:120}}>Conto</th><th style={{minWidth:140}}>Luogo</th></tr></thead>
+          <tbody>{lista.map(a => { const vu = n(a.cespValore)||costoUn(a); const qt = n(a.cespQta)||1; return <tr key={a.id}>
+            <td>{a.descrizione}</td>
+            <td><input className="cellinput" list="cesp-cat" value={a.cespCategoria||""} onChange={e=>set(a.id,{cespCategoria:e.target.value})}/></td>
+            <td><input type="date" className="cellinput" value={a.cespData||""} onChange={e=>set(a.id,{cespData:e.target.value})}/></td>
+            <td><Num className="cellinput n" value={a.cespQta || 1} onChange={v=>set(a.id,{cespQta:v})}/></td>
+            <td><Num className="cellinput n" value={a.cespValore || Math.round(costoUn(a)*100)/100} onChange={v=>set(a.id,{cespValore:v})}/></td>
+            <td className="t-right num"><strong>{eur(vu*qt)}</strong></td>
+            <td><Num className="cellinput n" value={a.cespAliquota} onChange={v=>set(a.id,{cespAliquota:v})}/></td>
+            <td><input className="cellinput" value={a.cespConto||""} onChange={e=>set(a.id,{cespConto:e.target.value})} placeholder="es. 1.10.20"/></td>
+            <td><Sel value={a.cespUbicazione||""} placeholder="—" options={ubicazioni.map(u=>({v:u.id,l:u.nome}))} onChange={v=>set(a.id,{cespUbicazione:v})}/></td>
+          </tr>; })}</tbody>
+          <tfoot><tr><td colSpan={5}>Totale</td><td className="t-right num">{eur(totale)}</td><td colSpan={3}></td></tr></tfoot>
+        </table></div>}
+    </div>
+    <datalist id="cesp-cat">{["Attrezzature bar","Impianti","Arredi","Elettronica","Automezzi","Macchinari"].map(c => <option key={c} value={c}/>)}</datalist>
+  </>;
+}
+
+/* ============================ IMPOSTAZIONI ============================ */
+function Setup({ctx}){
+  const {mode, toast, articoli, setArticoli, fornitori, setFornitori, ordini, setOrdini,
+         prodotti, setProdotti, ubicazioni, setUbicazioni, movimenti, setMovimenti} = ctx;
+  const [conferma, setConferma] = useState(null);
+  const fileRef = useRef(null);
+
+  const backup = () => {
+    const data = {v:1, esportatoIl:new Date().toISOString(), articoli, fornitori, ordini, prodotti, ubicazioni, movimenti};
+    download(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}), "master_backup_"+today()+".json");
+    toast("Backup scaricato","ok");
+  };
+  const ripristina = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try{
+      const d = JSON.parse(await f.text());
+      if (d.articoli) setArticoli(d.articoli);
+      if (d.fornitori) setFornitori(d.fornitori);
+      if (d.ordini) setOrdini(d.ordini);
+      if (d.prodotti) setProdotti(d.prodotti);
+      if (d.ubicazioni) setUbicazioni(d.ubicazioni);
+      if (d.movimenti) setMovimenti(d.movimenti);
+      toast("Dati ripristinati","ok");
+    }catch(err){ toast("File di backup non valido","err"); }
+    e.target.value = "";
+  };
+  const caricaEsempio = () => {
+    const s = buildSeed();
+    setArticoli(l => [...l, ...s.articoli]);
+    setProdotti(l => [...l, ...s.prodotti]);
+    setUbicazioni(l => l.length ? l : s.ubicazioni);
+    setFornitori(l => l.length ? l : s.fornitori);
+    toast("Dati di esempio caricati","ok");
+  };
+  const svuota = () => { [ "articoli","fornitori","ordini","prodotti","ubicazioni","movimenti" ].forEach(k => Store.save(k, []));
+    setArticoli([]); setFornitori([]); setOrdini([]); setProdotti([]); setUbicazioni([]); setMovimenti([]); toast("Dati azzerati"); };
+
+  return <>
+    <Top title="Impostazioni" hint="Fornitori, sincronizzazione e dati"/>
+    <div className="wrap grid" style={{gap:16, maxWidth:1000}}>
+      <div className="card">
+        <header><h3>Fornitori</h3><div className="spacer"/>
+          <button className="btn sm gold" onClick={()=>setFornitori(l => [...l, {id:uid(), nome:"Nuovo fornitore", referente:"", email:"", telefono:"", note:""}])}>Aggiungi</button>
+        </header>
+        {fornitori.length === 0
+          ? <Empty>Nessun fornitore in rubrica.</Empty>
+          : <table>
+            <thead><tr><th>Nome</th><th>Referente</th><th>Email</th><th>Telefono</th><th>Note</th><th style={{width:40}}></th></tr></thead>
+            <tbody>{fornitori.map(f => <tr key={f.id}>
+              {["nome","referente","email","telefono","note"].map(k =>
+                <td key={k}><input className="cellinput" value={f[k]||""} onChange={e=>setFornitori(l => l.map(x => x.id===f.id?{...x,[k]:e.target.value}:x))}/></td>)}
+              <td className="t-right"><button className="icobtn del" onClick={()=>setFornitori(l => l.filter(x => x.id !== f.id))}>🗑</button></td>
+            </tr>)}</tbody>
+          </table>}
+      </div>
+
+      <div className="card">
+        <header><h3>Sincronizzazione</h3></header>
+        <div className="body">
+          <p style={{marginTop:0}}>
+            <span className="dot" style={{background: mode==="cloud" ? "#2f7a55" : "#b8811b"}}/>
+            {mode === "cloud"
+              ? <>I dati sono sincronizzati su Firebase (progetto <strong>{FIREBASE_CONFIG.projectId}</strong>) e disponibili su tutti i dispositivi.</>
+              : <>L'app sta lavorando <strong>solo su questo dispositivo</strong>: i dati restano nel browser. Per sincronizzarli incolla la configurazione Firebase nel file <code>index.html</code> (blocco <code>FIREBASE_CONFIG</code>).</>}
+          </p>
+          <p className="small muted" style={{marginBottom:0}}>Fai comunque un backup periodico: svuotare la cache del browser cancella i dati locali.</p>
+        </div>
+      </div>
+
+      <div className="card">
+        <header><h3>Dati</h3></header>
+        <div className="body btnrow">
+          <button className="btn pri" onClick={backup}>Scarica backup</button>
+          <button className="btn" onClick={()=>fileRef.current.click()}>Ripristina da backup</button>
+          <button className="btn" onClick={caricaEsempio}>Carica dati di esempio</button>
+          <button className="btn danger" onClick={()=>setConferma("svuota")}>Azzera tutto</button>
+          <input ref={fileRef} type="file" accept=".json" style={{display:"none"}} onChange={ripristina}/>
+        </div>
+        <div className="body" style={{paddingTop:0}}>
+          <div className="kpis">
+            <div className="kpi"><div className="lab">Articoli</div><div className="val">{articoli.length}</div></div>
+            <div className="kpi"><div className="lab">Ordini</div><div className="val">{ordini.length}</div></div>
+            <div className="kpi"><div className="lab">Prodotti</div><div className="val">{prodotti.length}</div></div>
+            <div className="kpi"><div className="lab">Movimenti</div><div className="val">{movimenti.length}</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <header><h3>Modelli Excel</h3></header>
+        <div className="body btnrow">
+          <button className="btn" onClick={templateOrdine}>Modello ordine</button>
+          <button className="btn" onClick={templateArticoli}>Modello articoli</button>
+          <button className="btn" onClick={templateMagazzino}>Modello giacenze</button>
+        </div>
+      </div>
+    </div>
+
+    {conferma === "svuota" && <Confirm yesLabel="Azzera tutto" text="Cancello articoli, ordini, prodotti, luoghi e movimenti. L'operazione non è reversibile: scarica prima un backup."
+      onClose={()=>setConferma(null)} onYes={svuota}/>}
+  </>;
+}
+
+/* ============================ avvio ============================ */
+Store.init();
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
