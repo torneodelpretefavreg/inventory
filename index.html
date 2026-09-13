@@ -951,12 +951,47 @@ function Ordini({ctx}){
   </>;
 }
 
+/* colonne configurabili della tabella righe ordine */
+const COL_DEF = [
+  {k:"fornitore", l:"Fornitore",     x:"FORNITORE",       w:120},
+  {k:"categoria", l:"Categoria",     x:"CATEGORIA",       w:120, def:false},
+  {k:"um",        l:"UM",            x:"UM",              w:62},
+  {k:"prezzo",    l:"Importo unit.", x:"IMPORTO UNITARIO",w:104, n:true},
+  {k:"iva",       l:"IVA",           x:"IVA %",           w:74,  n:true},
+  {k:"quantita",  l:"Quantità",      x:"QUANTITÀ",        w:88,  n:true},
+  {k:"costoUn",   l:"Costo unit.",   x:"COSTO UNITARIO",  w:104, n:true, calc:true},
+  {k:"costoTot",  l:"Costo totale",  x:"COSTO TOTALE",    w:112, n:true, calc:true},
+  {k:"note",      l:"Note",          x:"NOTE",            w:120}
+];
+const colVis = (o, c) => (o.colonne && o.colonne[c.k] !== undefined) ? !!o.colonne[c.k] : c.def !== false;
+const valCol = (r, k) => {
+  const rt = rigaTot(r);
+  switch(k){
+    case "iva": return Math.round(parseIva(r.iva)*10000)/100;
+    case "prezzo": return n(r.prezzo);
+    case "quantita": return n(r.quantita);
+    case "costoUn": return rt.costoUnitario;
+    case "costoTot": return rt.totale;
+    default: return r[k] ?? "";
+  }
+};
+/* colonne attive, usate anche dagli export */
+function colonneOrdine(o){
+  const cols = COL_DEF.filter(c => colVis(o, c)).map(c => ({l:c.l, x:c.x, n:c.n, get:r => valCol(r, c.k)}));
+  (o.colonneCustom || []).forEach(cc => cols.push({
+    l: cc.nome, x: String(cc.nome || "").toUpperCase(), n: cc.tipo === "numero",
+    get: r => (r.extra || {})[cc.id] ?? ""
+  }));
+  return cols;
+}
+
 function OrdineEditor({ordine, patch, ctx, onClose}){
   const {articoli, fornNomi, ubicazioni, setArticoli, setMovimenti, artById, toast} = ctx;
   const [imp, setImp] = useState(null);
   const [ricevi, setRicevi] = useState(false);
   const [selR, setSelR] = useState([]);
   const [delSelR, setDelSelR] = useState(false);
+  const [colOpen, setColOpen] = useState(false);
   const t = ordineTot(ordine);
   const righe = ordine.righe || [];
   const setRighe = f => patch({righe: typeof f === "function" ? f(righe) : f});
@@ -974,6 +1009,25 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
   const collegaArticolo = (rigaId, artId) => {
     const a = artById[artId]; if (!a) { setRiga(rigaId, {articoloId:""}); return; }
     setRiga(rigaId, {articoloId:a.id, descrizione:a.descrizione, fornitore:a.fornitore, categoria:a.categoria, um:a.um, prezzo:n(a.prezzo), iva:parseIva(a.iva)});
+  };
+
+  const colStd = COL_DEF.filter(c => colVis(ordine, c));
+  const colCustom = ordine.colonneCustom || [];
+  const nCols = 2 + colStd.length + colCustom.length + 1;
+  const cella = (r, c) => {
+    const rt = rigaTot(r);
+    switch(c.k){
+      case "fornitore": return <input className="cellinput" list="forn-list" value={r.fornitore || ""} onChange={e=>setRiga(r.id,{fornitore:e.target.value})}/>;
+      case "categoria": return <input className="cellinput" list="cat-list" value={r.categoria || ""} onChange={e=>setRiga(r.id,{categoria:e.target.value})}/>;
+      case "um":        return <input className="cellinput" list="um-list" value={r.um || ""} onChange={e=>setRiga(r.id,{um:e.target.value})}/>;
+      case "prezzo":    return <Num className="cellinput n" value={r.prezzo} onChange={v=>setRiga(r.id,{prezzo:v})}/>;
+      case "iva":       return <Num className="cellinput n" value={Math.round(parseIva(r.iva)*10000)/100} onChange={v=>setRiga(r.id,{iva:parseIva(v)})}/>;
+      case "quantita":  return <Num className="cellinput n" value={r.quantita} onChange={v=>setRiga(r.id,{quantita:v})}/>;
+      case "costoUn":   return <span className="num muted">{num(rt.costoUnitario,4)}</span>;
+      case "costoTot":  return <strong className="num">{eur(rt.totale)}</strong>;
+      case "note":      return <input className="cellinput" value={r.note || ""} onChange={e=>setRiga(r.id,{note:e.target.value})}/>;
+      default: return null;
+    }
   };
 
   const suggeriti = useMemo(() => {
@@ -1026,6 +1080,7 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
           <button className="btn sm danger" onClick={()=>setDelSelR(true)}>Elimina selezionate</button>
         </>}
         <button className="btn sm" onClick={addVuota}>+ Riga</button>
+        <button className="btn sm" onClick={()=>setColOpen(true)}>Colonne</button>
         <button className="btn sm" onClick={()=>setImp("ordine")}>Importa Excel</button>
         <button className="btn sm" onClick={templateOrdine}>Modello</button>
         <button className="btn sm" onClick={()=>esportaOrdineExcel(ordine)}>Excel</button>
@@ -1054,12 +1109,12 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
                   checked={righe.length > 0 && righe.every(r => selR.includes(r.id))}
                   onChange={e=>setSelR(e.target.checked ? righe.map(r => r.id) : [])}/>
               </th>
-              <th style={{minWidth:230}}>Articolo</th><th style={{minWidth:120}}>Fornitore</th><th style={{width:62}}>UM</th>
-              <th className="t-right" style={{width:104}}>Importo unit.</th><th className="t-right" style={{width:74}}>IVA</th>
-              <th className="t-right" style={{width:88}}>Quantità</th><th className="t-right" style={{width:104}}>Costo unit.</th>
-              <th className="t-right" style={{width:112}}>Costo totale</th><th style={{minWidth:120}}>Note</th><th style={{width:58}}></th>
+              <th style={{minWidth:230}}>Articolo</th>
+              {colStd.map(c => <th key={c.k} className={c.n?"t-right":""} style={{width:c.w, minWidth:c.n?undefined:c.w}}>{c.l}</th>)}
+              {colCustom.map(cc => <th key={cc.id} className={cc.tipo==="numero"?"t-right":""} style={{minWidth:110}}>{cc.nome}</th>)}
+              <th style={{width:58}}></th>
             </tr></thead>
-            <tbody>{righe.map((r,i) => { const rt = rigaTot(r); return <tr key={r.id} style={selR.includes(r.id)?{background:"var(--gold-soft)"}:null}>
+            <tbody>{righe.map((r,i) => <tr key={r.id} style={selR.includes(r.id)?{background:"var(--gold-soft)"}:null}>
               <td className="t-center">
                 <input type="checkbox" style={{width:"auto"}} checked={selR.includes(r.id)}
                   onChange={e=>setSelR(e.target.checked ? [...selR, r.id] : selR.filter(id => id !== r.id))}/>
@@ -1073,29 +1128,25 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
                   }}/>
                 {!r.articoloId && r.descrizione && <span className="tag" style={{fontSize:10,marginTop:2}}>fuori anagrafica</span>}
               </td>
-              <td><input className="cellinput" list="forn-list" value={r.fornitore || ""} onChange={e=>setRiga(r.id,{fornitore:e.target.value})}/></td>
-              <td><input className="cellinput" list="um-list" value={r.um || ""} onChange={e=>setRiga(r.id,{um:e.target.value})}/></td>
-              <td><Num className="cellinput n" value={r.prezzo} onChange={v=>setRiga(r.id,{prezzo:v})}/></td>
-              <td><Num className="cellinput n" value={Math.round(parseIva(r.iva)*10000)/100} onChange={v=>setRiga(r.id,{iva:parseIva(v)})}/></td>
-              <td><Num className="cellinput n" value={r.quantita} onChange={v=>setRiga(r.id,{quantita:v})}/></td>
-              <td className="t-right num muted">{num(rt.costoUnitario,4)}</td>
-              <td className="t-right num"><strong>{eur(rt.totale)}</strong></td>
-              <td><input className="cellinput" value={r.note || ""} onChange={e=>setRiga(r.id,{note:e.target.value})}/></td>
+              {colStd.map(c => <td key={c.k} className={c.n?"t-right":""}>{cella(r, c)}</td>)}
+              {colCustom.map(cc => <td key={cc.id} className={cc.tipo==="numero"?"t-right":""}>
+                {cc.tipo === "numero"
+                  ? <Num className="cellinput n" value={(r.extra||{})[cc.id] || 0} onChange={v=>setRiga(r.id,{extra:{...(r.extra||{}), [cc.id]:v}})}/>
+                  : <input className="cellinput" value={(r.extra||{})[cc.id] || ""} onChange={e=>setRiga(r.id,{extra:{...(r.extra||{}), [cc.id]:e.target.value}})}/>}
+              </td>)}
               <td className="t-right">
-                <button className="icobtn" title="Duplica riga" onClick={()=>setRighe(rs => [...rs.slice(0,i+1), {...r, id:uid()}, ...rs.slice(i+1)])}>⧉</button>
+                <button className="icobtn" title="Duplica riga" onClick={()=>setRighe(rs => [...rs.slice(0,i+1), {...r, id:uid(), extra:{...(r.extra||{})}}, ...rs.slice(i+1)])}>⧉</button>
                 <button className="icobtn del" title="Elimina riga" onClick={()=>setRighe(rs => rs.filter(x => x.id !== r.id))}>✕</button>
               </td>
-            </tr>; })}</tbody>
-            <tfoot><tr>
-              <td colSpan={7}>Totali</td>
-              <td className="t-right">Imponibile</td>
-              <td className="t-right num">{eur(t.imponibile)}</td><td colSpan={2}></td>
-            </tr><tr>
-              <td colSpan={7}></td><td className="t-right">IVA</td><td className="t-right num">{eur(t.iva)}</td><td colSpan={2}></td>
-            </tr><tr>
-              <td colSpan={7}></td><td className="t-right">Totale</td>
-              <td className="t-right num" style={{fontSize:15}}>{eur(t.totale)}</td><td colSpan={2}></td>
-            </tr></tfoot>
+            </tr>)}</tbody>
+            <tfoot><tr><td colSpan={nCols}>
+              <div style={{display:"flex",gap:24,justifyContent:"flex-end",alignItems:"baseline",flexWrap:"wrap"}}>
+                <span className="small muted">{t.righe} righe · {num(t.pezzi,0)} pezzi</span>
+                <span>Imponibile <span className="num">{eur(t.imponibile)}</span></span>
+                <span>IVA <span className="num">{eur(t.iva)}</span></span>
+                <span style={{fontSize:15}}>Totale <span className="num">{eur(t.totale)}</span></span>
+              </div>
+            </td></tr></tfoot>
           </table></div>}
       <datalist id={"art-"+ordine.id}>{articoli.map(a => <option key={a.id} value={a.descrizione}/>)}</datalist>
       <datalist id="um-list">{UM_LIST.map(u => <option key={u} value={u}/>)}</datalist>
@@ -1105,6 +1156,7 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
       <button className="btn" onClick={onClose}>Chiudi scheda</button>
     </div>
 
+    {colOpen && <ColonneModal ordine={ordine} patch={patch} onClose={()=>setColOpen(false)}/>}
     {delSelR && <Confirm yesLabel={"Elimina "+selR.length+" righe"}
       text={`Elimini ${selR.length} righe da questo ordine?`}
       onClose={()=>setDelSelR(false)}
@@ -1125,6 +1177,64 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
           </div>}
     </Modal>}
   </>;
+}
+
+/* ============================ colonne dell'ordine ============================ */
+function ColonneModal({ordine, patch, onClose}){
+  const custom = ordine.colonneCustom || [];
+  const setCol = (k, v) => patch({colonne: {...(ordine.colonne || {}), [k]: v}});
+  const preset = keys => patch({colonne: Object.fromEntries(COL_DEF.map(c => [c.k, keys.includes(c.k)]))});
+  const [nuova, setNuova] = useState("");
+  const [tipo, setTipo] = useState("testo");
+
+  const aggiungi = () => {
+    const nome = nuova.trim();
+    if (!nome) return;
+    patch({colonneCustom: [...custom, {id: uid(), nome, tipo}]});
+    setNuova("");
+  };
+
+  return <Modal title="Colonne dell'ordine" onClose={onClose} footer={<button className="btn pri" onClick={onClose}>Fatto</button>}>
+    <p className="small muted" style={{marginTop:0}}>
+      Vale solo per questo ordine: puoi tenere a video le colonne che servono e nascondere il resto. I dati nascosti non vengono cancellati e restano nei calcoli.
+    </p>
+
+    <div className="btnrow" style={{marginBottom:14}}>
+      <button className="btn sm" onClick={()=>preset(["quantita"])}>Solo quantità</button>
+      <button className="btn sm" onClick={()=>preset(["um","prezzo","iva","quantita","costoTot"])}>Essenziale</button>
+      <button className="btn sm" onClick={()=>preset(COL_DEF.filter(c => c.def !== false).map(c => c.k))}>Standard</button>
+      <button className="btn sm" onClick={()=>preset(COL_DEF.map(c => c.k))}>Tutte</button>
+    </div>
+
+    <div className="grid" style={{gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:6}}>
+      {COL_DEF.map(c => <label key={c.k} className="small" style={{display:"flex",gap:7,alignItems:"center",padding:"5px 7px",border:"1px solid var(--line-soft)",borderRadius:"var(--r)"}}>
+        <input type="checkbox" style={{width:"auto"}} checked={colVis(ordine, c)} onChange={e=>setCol(c.k, e.target.checked)}/>
+        {c.l}{c.calc && <span className="muted" style={{fontSize:11}}>(calcolata)</span>}
+      </label>)}
+    </div>
+
+    <h4 style={{margin:"20px 0 8px",font:"600 13px/1.3 inherit"}}>Colonne aggiuntive</h4>
+    {custom.length === 0
+      ? <p className="small muted" style={{marginTop:0}}>Nessuna colonna personalizzata. Servono per informazioni tue: lotto, scadenza, referente, cartoni, bancali…</p>
+      : <table style={{marginBottom:10}}>
+          <tbody>{custom.map(cc => <tr key={cc.id}>
+            <td><input className="cellinput" value={cc.nome} onChange={e=>patch({colonneCustom: custom.map(x => x.id===cc.id?{...x, nome:e.target.value}:x)})}/></td>
+            <td style={{width:130}}>
+              <Sel value={cc.tipo} options={[{v:"testo",l:"Testo"},{v:"numero",l:"Numero"}]}
+                onChange={v=>patch({colonneCustom: custom.map(x => x.id===cc.id?{...x, tipo:v}:x)})}/>
+            </td>
+            <td style={{width:40}} className="t-right">
+              <button className="icobtn del" title="Elimina colonna" onClick={()=>patch({colonneCustom: custom.filter(x => x.id !== cc.id)})}>🗑</button>
+            </td>
+          </tr>)}</tbody>
+        </table>}
+    <div className="btnrow">
+      <input type="text" value={nuova} onChange={e=>setNuova(e.target.value)} placeholder="Nome della nuova colonna" style={{maxWidth:260}}
+        onKeyDown={e=>{ if(e.key === "Enter") aggiungi(); }}/>
+      <Sel value={tipo} onChange={setTipo} options={[{v:"testo",l:"Testo"},{v:"numero",l:"Numero"}]} style={{width:120}}/>
+      <button className="btn gold" onClick={aggiungi} disabled={!nuova.trim()}>Aggiungi colonna</button>
+    </div>
+  </Modal>;
 }
 
 /* ============================ import Excel (righe ordine) ============================ */
@@ -1226,22 +1336,21 @@ function ImportModal({ctx, onClose, onDone}){
 /* ============================ export ordine ============================ */
 function esportaOrdineExcel(o){
   const t = ordineTot(o);
-  const head = [...TEMPLATE_HEAD, "COSTO UNITARIO", "COSTO TOTALE"];
-  const body = (o.righe||[]).map(r => {
-    const rt = rigaTot(r);
-    return [r.descrizione, r.fornitore, r.categoria, r.um, n(r.prezzo), Math.round(parseIva(r.iva)*10000)/100, n(r.quantita), r.note, rt.costoUnitario, rt.totale];
-  });
+  const cols = colonneOrdine(o);
+  const head = ["ARTICOLO", ...cols.map(c => c.x)];
+  const body = (o.righe||[]).map(r => [r.descrizione, ...cols.map(c => c.get(r))]);
+  const pad = new Array(Math.max(0, head.length - 2)).fill("");
   const aoa = [
-    ["ORDINE", o.numero || "", "", "", "", "", "", "", "", ""],
+    ["ORDINE", o.numero || ""],
     ["Titolo", o.titolo || ""], ["Fornitore", o.fornitore || ""], ["Evento", o.evento || ""],
     ["Data", dmy(o.data)], ["Consegna prevista", dmy(o.dataConsegna)], ["Stato", o.stato || ""],
     ["Note", o.note || ""], [],
     head, ...body, [],
-    ["", "", "", "", "", "", "", "", "Imponibile", t.imponibile],
-    ["", "", "", "", "", "", "", "", "IVA", t.iva],
-    ["", "", "", "", "", "", "", "", "Totale", t.totale]
+    [...pad, "Imponibile", t.imponibile],
+    [...pad, "IVA", t.iva],
+    [...pad, "Totale", t.totale]
   ];
-  aoaToFile([{name:"ORDINE", cols:[38,16,16,8,16,8,12,24,16,16], aoa}], "ordine_"+slug(o.titolo || o.numero)+".xlsx");
+  aoaToFile([{name:"ORDINE", cols:[38, ...cols.map(() => 16)], aoa}], "ordine_"+slug(o.titolo || o.numero)+".xlsx");
 }
 function esportaOrdinePdf(o){
   const doc = pdfDoc("p");
@@ -1250,13 +1359,16 @@ function esportaOrdinePdf(o){
     ["Fornitore", o.fornitore || "—"], ["Data ordine", dmy(o.data) || "—"], ["Consegna", dmy(o.dataConsegna) || "—"],
     ["Evento", o.evento || "—"], ["Stato", o.stato || "—"], ["Righe", String(t.righe)]
   ]);
+  const cols = colonneOrdine(o);
+  const styles = {0:{cellWidth: cols.length > 6 ? 50 : 62}};
+  cols.forEach((c, i) => { if (c.n) styles[i+1] = {halign:"right"}; });
   y = pdfTable(doc,
-    ["Articolo","Fornitore","UM","Imp. unit.","IVA","Qtà","Costo unit.","Costo tot."],
-    (o.righe||[]).map(r => { const rt = rigaTot(r); return [
-      r.descrizione, r.fornitore || "", r.um || "", num(r.prezzo,4), pct(parseIva(r.iva)),
-      num(r.quantita,0), num(rt.costoUnitario,4), num(rt.totale,2)]; }),
-    y + 4,
-    {columnStyles:{0:{cellWidth:56},3:{halign:"right"},4:{halign:"right"},5:{halign:"right"},6:{halign:"right"},7:{halign:"right",fontStyle:"bold"}}}
+    ["Articolo", ...cols.map(c => c.l)],
+    (o.righe||[]).map(r => [r.descrizione, ...cols.map(c => {
+      const v = c.get(r);
+      return typeof v === "number" ? num(v, Number.isInteger(v) ? 0 : (Math.abs(v) < 10 ? 4 : 2)) : String(v ?? "");
+    })]),
+    y + 4, {columnStyles: styles}
   );
   doc.autoTable({
     body:[["Imponibile", num(t.imponibile,2)+" EUR"],["IVA", num(t.iva,2)+" EUR"],["Totale", num(t.totale,2)+" EUR"]],
