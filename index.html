@@ -609,17 +609,26 @@ function buildSeed(){
 }
 
 /* ============================ calcoli ============================ */
+/* quantita = quantità ordinata (lordo); reso = quantità restituita; i totali sono calcolati sul netto */
+const qtaNetta = r => n(r.quantita) - n(r.reso);
 function rigaTot(r){
   const cu = n(r.prezzo) * (1 + parseIva(r.iva));
-  return {costoUnitario:cu, imponibile:n(r.prezzo)*n(r.quantita), iva:cu*n(r.quantita)-n(r.prezzo)*n(r.quantita), totale:cu*n(r.quantita)};
+  const qL = n(r.quantita), qR = n(r.reso), qN = qL - qR;
+  return {costoUnitario:cu, qtaLorda:qL, qtaResa:qR, qtaNetta:qN,
+          imponibile:n(r.prezzo)*qN, iva:(cu - n(r.prezzo))*qN, totale:cu*qN,
+          imponibileLordo:n(r.prezzo)*qL, totaleLordo:cu*qL,
+          resoImponibile:n(r.prezzo)*qR, resoTotale:cu*qR};
 }
+const haResi = o => (o.righe||[]).some(r => n(r.reso) !== 0);
 function ordineTot(o){
   return (o.righe||[]).reduce((acc,r) => {
     const t = rigaTot(r);
     acc.imponibile += t.imponibile; acc.iva += t.iva; acc.totale += t.totale; acc.righe++;
-    acc.pezzi += n(r.quantita);
+    acc.pezzi += t.qtaNetta;
+    acc.imponibileLordo += t.imponibileLordo; acc.totaleLordo += t.totaleLordo;
+    acc.resoImponibile += t.resoImponibile; acc.resoTotale += t.resoTotale;
     return acc;
-  }, {imponibile:0, iva:0, totale:0, righe:0, pezzi:0});
+  }, {imponibile:0, iva:0, totale:0, righe:0, pezzi:0, imponibileLordo:0, totaleLordo:0, resoImponibile:0, resoTotale:0});
 }
 function costoProdotto(p, artById){
   return (p.componenti||[]).reduce((s,c) => {
@@ -958,19 +967,28 @@ const COL_DEF = [
   {k:"um",        l:"UM",            x:"UM",              w:62},
   {k:"prezzo",    l:"Importo unit.", x:"IMPORTO UNITARIO",w:104, n:true},
   {k:"iva",       l:"IVA",           x:"IVA %",           w:74,  n:true},
-  {k:"quantita",  l:"Quantità",      x:"QUANTITÀ",        w:88,  n:true},
+  {k:"quantita",  l:"Qtà ordinata",  x:"QUANTITÀ ORDINATA", w:92, n:true},
+  {k:"reso",      l:"Reso",          x:"RESO",            w:96,  n:true, def:false, auto:true},
+  {k:"qtaNetta",  l:"Qtà netta",     x:"QUANTITÀ NETTA",  w:92,  n:true, calc:true, def:false, auto:true},
   {k:"costoUn",   l:"Costo unit.",   x:"COSTO UNITARIO",  w:104, n:true, calc:true},
-  {k:"costoTot",  l:"Costo totale",  x:"COSTO TOTALE",    w:112, n:true, calc:true},
+  {k:"costoLordo",l:"Costo ordinato",x:"COSTO ORDINATO",  w:112, n:true, calc:true, def:false, auto:true},
+  {k:"costoReso", l:"Valore reso",   x:"VALORE RESO",     w:116, n:true, calc:true, def:false, auto:true},
+  {k:"costoTot",  l:"Costo netto",   x:"COSTO NETTO",     w:112, n:true, calc:true},
   {k:"note",      l:"Note",          x:"NOTE",            w:120}
 ];
-const colVis = (o, c) => (o.colonne && o.colonne[c.k] !== undefined) ? !!o.colonne[c.k] : c.def !== false;
+/* le colonne "auto" (resi) compaiono da sole appena una riga ha un reso */
+const colVis = (o, c) => (o.colonne && o.colonne[c.k] !== undefined) ? !!o.colonne[c.k] : (c.auto ? haResi(o) : c.def !== false);
 const valCol = (r, k) => {
   const rt = rigaTot(r);
   switch(k){
     case "iva": return Math.round(parseIva(r.iva)*10000)/100;
     case "prezzo": return n(r.prezzo);
     case "quantita": return n(r.quantita);
+    case "reso": return n(r.reso);
+    case "qtaNetta": return rt.qtaNetta;
     case "costoUn": return rt.costoUnitario;
+    case "costoLordo": return rt.totaleLordo;
+    case "costoReso": return rt.resoTotale;
     case "costoTot": return rt.totale;
     default: return r[k] ?? "";
   }
@@ -1023,7 +1041,11 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
       case "prezzo":    return <Num className="cellinput n" value={r.prezzo} onChange={v=>setRiga(r.id,{prezzo:v})}/>;
       case "iva":       return <Num className="cellinput n" value={Math.round(parseIva(r.iva)*10000)/100} onChange={v=>setRiga(r.id,{iva:parseIva(v)})}/>;
       case "quantita":  return <Num className="cellinput n" value={r.quantita} onChange={v=>setRiga(r.id,{quantita:v})}/>;
+      case "reso":      return <Num className="cellinput n" value={r.reso || 0} onChange={v=>setRiga(r.id,{reso:v})}/>;
+      case "qtaNetta":  return <span className="num" style={rt.qtaNetta < 0 ? {color:"var(--red, #b3261e)"} : null}>{num(rt.qtaNetta, 2)}</span>;
       case "costoUn":   return <span className="num muted">{num(rt.costoUnitario,4)}</span>;
+      case "costoLordo":return <span className="num muted">{eur(rt.totaleLordo)}</span>;
+      case "costoReso": return <span className="num muted">{rt.resoTotale ? "−" + eur(rt.resoTotale) : "—"}</span>;
       case "costoTot":  return <strong className="num">{eur(rt.totale)}</strong>;
       case "note":      return <input className="cellinput" value={r.note || ""} onChange={e=>setRiga(r.id,{note:e.target.value})}/>;
       default: return null;
@@ -1036,8 +1058,8 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
   }, [articoli, ordine.fornitore]);
 
   const registraMagazzino = ubicazioneId => {
-    const movs = righe.filter(r => r.articoloId && n(r.quantita) > 0).map(r => ({
-      id: uid(), data: today(), tipo:"Carico", articoloId: r.articoloId, quantita: n(r.quantita),
+    const movs = righe.filter(r => r.articoloId && qtaNetta(r) > 0).map(r => ({
+      id: uid(), data: today(), tipo:"Carico", articoloId: r.articoloId, quantita: qtaNetta(r),
       ubicazioneId, valoreUnitario: n(r.prezzo) * (1 + parseIva(r.iva)), ordineId: ordine.id,
       note: "Ordine " + (ordine.numero || "")
     }));
@@ -1081,6 +1103,7 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
         </>}
         <button className="btn sm" onClick={addVuota}>+ Riga</button>
         <button className="btn sm" onClick={()=>setColOpen(true)}>Colonne</button>
+        <button className="btn sm" title="Mostra le colonne per registrare i resi" onClick={()=>patch({colonne:{...(ordine.colonne||{}), reso:true, qtaNetta:true, costoLordo:true, costoReso:true}})}>Resi</button>
         <button className="btn sm" onClick={()=>setImp("ordine")}>Importa Excel</button>
         <button className="btn sm" onClick={templateOrdine}>Modello</button>
         <button className="btn sm" onClick={()=>esportaOrdineExcel(ordine)}>Excel</button>
@@ -1142,7 +1165,11 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
             <tfoot><tr><td colSpan={nCols}>
               <div style={{display:"flex",gap:24,justifyContent:"flex-end",alignItems:"baseline",flexWrap:"wrap"}}>
                 <span className="small muted">{t.righe} righe · {num(t.pezzi,0)} pezzi</span>
-                <span>Imponibile <span className="num">{eur(t.imponibile)}</span></span>
+                {t.resoImponibile !== 0 && <>
+                  <span className="muted">Ordinato <span className="num">{eur(t.imponibileLordo)}</span></span>
+                  <span className="muted">Reso <span className="num">−{eur(t.resoImponibile)}</span></span>
+                </>}
+                <span>Imponibile{t.resoImponibile !== 0 ? " netto" : ""} <span className="num">{eur(t.imponibile)}</span></span>
                 <span>IVA <span className="num">{eur(t.iva)}</span></span>
                 <span style={{fontSize:15}}>Totale <span className="num">{eur(t.totale)}</span></span>
               </div>
@@ -1183,7 +1210,7 @@ function OrdineEditor({ordine, patch, ctx, onClose}){
 function ColonneModal({ordine, patch, onClose}){
   const custom = ordine.colonneCustom || [];
   const setCol = (k, v) => patch({colonne: {...(ordine.colonne || {}), [k]: v}});
-  const preset = keys => patch({colonne: Object.fromEntries(COL_DEF.map(c => [c.k, keys.includes(c.k)]))});
+  const preset = keys => patch({colonne: Object.fromEntries(COL_DEF.filter(c => !c.auto || keys.includes(c.k)).map(c => [c.k, keys.includes(c.k)]))});
   const [nuova, setNuova] = useState("");
   const [tipo, setTipo] = useState("testo");
 
@@ -1346,7 +1373,8 @@ function esportaOrdineExcel(o){
     ["Data", dmy(o.data)], ["Consegna prevista", dmy(o.dataConsegna)], ["Stato", o.stato || ""],
     ["Note", o.note || ""], [],
     head, ...body, [],
-    [...pad, "Imponibile", t.imponibile],
+    ...(t.resoImponibile !== 0 ? [[...pad, "Imponibile ordinato", t.imponibileLordo], [...pad, "Reso", -t.resoImponibile]] : []),
+    [...pad, t.resoImponibile !== 0 ? "Imponibile netto" : "Imponibile", t.imponibile],
     [...pad, "IVA", t.iva],
     [...pad, "Totale", t.totale]
   ];
@@ -1370,12 +1398,18 @@ function esportaOrdinePdf(o){
     })]),
     y + 4, {columnStyles: styles}
   );
+  const righeTot = [];
+  if (t.resoImponibile !== 0){
+    righeTot.push(["Imponibile ordinato", num(t.imponibileLordo,2)+" EUR"]);
+    righeTot.push(["Reso", "-"+num(t.resoImponibile,2)+" EUR"]);
+  }
+  righeTot.push([t.resoImponibile !== 0 ? "Imponibile netto" : "Imponibile", num(t.imponibile,2)+" EUR"],["IVA", num(t.iva,2)+" EUR"],["Totale", num(t.totale,2)+" EUR"]);
   doc.autoTable({
-    body:[["Imponibile", num(t.imponibile,2)+" EUR"],["IVA", num(t.iva,2)+" EUR"],["Totale", num(t.totale,2)+" EUR"]],
+    body: righeTot,
     startY: y + 6, theme:"plain", margin:{left:120,right:14},
     styles:{fontSize:9.5, cellPadding:1.6},
     columnStyles:{0:{fontStyle:"bold"},1:{halign:"right"}},
-    didParseCell: d => { if (d.row.index === 2){ d.cell.styles.fontSize = 11; d.cell.styles.fillColor = [246,236,214]; } }
+    didParseCell: d => { if (d.row.index === righeTot.length - 1){ d.cell.styles.fontSize = 11; d.cell.styles.fillColor = [246,236,214]; } }
   });
   if (o.note){
     const yy = doc.lastAutoTable.finalY + 8;
@@ -1386,14 +1420,14 @@ function esportaOrdinePdf(o){
   doc.save("ordine_"+slug(o.titolo || o.numero)+".pdf");
 }
 function esportaElencoOrdini(ordini){
-  const aoa = [["NUMERO","TITOLO","FORNITORE","EVENTO","DATA","CONSEGNA","STATO","RIGHE","IMPONIBILE","IVA","TOTALE"]];
+  const aoa = [["NUMERO","TITOLO","FORNITORE","EVENTO","DATA","CONSEGNA","STATO","RIGHE","IMPONIBILE ORDINATO","RESO","IMPONIBILE NETTO","IVA","TOTALE"]];
   ordini.forEach(o => { const t = ordineTot(o);
-    aoa.push([o.numero, o.titolo, o.fornitore, o.evento, dmy(o.data), dmy(o.dataConsegna), o.stato, t.righe, t.imponibile, t.iva, t.totale]); });
-  const righe = [["ORDINE","ARTICOLO","FORNITORE","UM","IMPORTO UNITARIO","IVA %","QUANTITÀ","COSTO UNITARIO","COSTO TOTALE"]];
+    aoa.push([o.numero, o.titolo, o.fornitore, o.evento, dmy(o.data), dmy(o.dataConsegna), o.stato, t.righe, t.imponibileLordo, -t.resoImponibile, t.imponibile, t.iva, t.totale]); });
+  const righe = [["ORDINE","ARTICOLO","FORNITORE","UM","IMPORTO UNITARIO","IVA %","QUANTITÀ ORDINATA","RESO","QUANTITÀ NETTA","COSTO UNITARIO","COSTO NETTO"]];
   ordini.forEach(o => (o.righe||[]).forEach(r => { const rt = rigaTot(r);
-    righe.push([o.titolo || o.numero, r.descrizione, r.fornitore, r.um, n(r.prezzo), Math.round(parseIva(r.iva)*10000)/100, n(r.quantita), rt.costoUnitario, rt.totale]); }));
-  aoaToFile([{name:"ORDINI", cols:[12,30,18,20,12,12,12,8,14,14,14], aoa},
-             {name:"RIGHE", cols:[26,36,18,8,16,8,12,16,16], aoa:righe}], "elenco_ordini.xlsx");
+    righe.push([o.titolo || o.numero, r.descrizione, r.fornitore, r.um, n(r.prezzo), Math.round(parseIva(r.iva)*10000)/100, rt.qtaLorda, rt.qtaResa, rt.qtaNetta, rt.costoUnitario, rt.totale]); }));
+  aoaToFile([{name:"ORDINI", cols:[12,30,18,20,12,12,12,8,16,12,16,14,14], aoa},
+             {name:"RIGHE", cols:[26,36,18,8,16,8,14,10,14,16,16], aoa:righe}], "elenco_ordini.xlsx");
 }
 
 /* ============================ ARTICOLI ============================ */
