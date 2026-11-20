@@ -3,9 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Master · Ordini, Magazzino e Marginalità</title>
+<title>Inventory · Ordini, Magazzino e Marginalità</title>
 <meta name="theme-color" content="#12202f">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='18' fill='%2312202f'/><text y='70' x='50' text-anchor='middle' font-size='58' font-family='Georgia' fill='%23d9a227'>M</text></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2312202f'/><rect x='18' y='22' width='5' height='56' fill='%23f2f1ec'/><rect x='27' y='22' width='3' height='56' fill='%23f2f1ec'/><rect x='34' y='22' width='8' height='56' fill='%23b8811b'/><rect x='46' y='22' width='3' height='56' fill='%23f2f1ec'/><rect x='53' y='22' width='5' height='56' fill='%23f2f1ec'/><rect x='62' y='22' width='3' height='56' fill='%23f2f1ec'/><rect x='69' y='22' width='8' height='56' fill='%23f2f1ec'/><rect x='81' y='22' width='3' height='56' fill='%23f2f1ec'/></svg>">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Inventory">
 <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone@7.26.4/babel.min.js" crossorigin></script>
@@ -187,6 +189,12 @@ textarea{resize:vertical;min-height:62px}
   .mobnav .ico{font-size:15px}
   .formgrid{grid-template-columns:1fr 1fr}
 }
+/* intestazione home */
+.home-brand{display:flex;align-items:center;gap:16px;padding:18px 22px;background:var(--card);border-bottom:1px solid var(--line-soft)}
+.home-brand-tit{font:700 26px/1.1 Georgia,serif;color:var(--ink);letter-spacing:.01em}
+.home-brand-sub{font-size:12.5px;color:var(--muted);margin-top:3px}
+@media(min-width:861px){.home-brand{display:none}}
+
 /* ingresso magazzino */
 .strade{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;max-width:900px}
 .strada{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;cursor:pointer;
@@ -600,7 +608,7 @@ function pdfFooter(doc){
   for (let i=1;i<=p;i++){
     doc.setPage(i);
     doc.setFontSize(8); doc.setTextColor(140,145,150);
-    doc.text("Generato il "+dmy(today())+" · Master", 14, doc.internal.pageSize.getHeight()-8);
+    doc.text("Generato il "+dmy(today())+" · Inventory", 14, doc.internal.pageSize.getHeight()-8);
     doc.text(i+"/"+p, doc.internal.pageSize.getWidth()-14, doc.internal.pageSize.getHeight()-8, {align:"right"});
   }
 }
@@ -777,6 +785,17 @@ async function seedProLoco(){
   }catch(e){ console.warn("seed Pro Loco", e); }
 }
 
+/* ============================ LOGO ============================ */
+/* Logo Inventory: etichetta blu con codice a barre, una barra in oro */
+function LogoInventory({size=44, code=true}){
+  const bars = [[12,4],[20,2],[26,6,1],[36,2],[42,4],[50,2],[56,6],[66,2],[72,4]];
+  return <svg width={size} height={size*70/88} viewBox="0 0 88 70" role="img" aria-label="Inventory" style={{display:"block",flex:"0 0 auto"}}>
+    <rect x="0.75" y="0.75" width="86.5" height="68.5" rx="9" fill="#12202f" stroke="#b8811b" strokeOpacity=".55" strokeWidth="1.5"/>
+    {bars.map(([x,w,g],i) => <rect key={i} x={x} y="11" width={w} height={code?41:48} fill={g?"#b8811b":"#f2f1ec"}/>)}
+    {code && <text x="44" y="64" textAnchor="middle" style={{font:"600 8.5px ui-monospace,Menlo,monospace",fill:"#b8811b",letterSpacing:"1.2px"}}>INV 0001</text>}
+  </svg>;
+}
+
 /* ============================ APP ============================ */
 const NAV = [
   {k:"dashboard", l:"Quadro generale", i:"◧"},
@@ -835,9 +854,12 @@ function App(){
   return <ToastCtx.Provider value={toast}>
     <div className="shell">
       <aside className="side">
-        <div className="brand">
-          <h1>Master</h1>
-          <span className="sub">Ordini · Magazzino · Marginalità</span>
+        <div className="brand" style={{display:"flex",alignItems:"center",gap:11}}>
+          <LogoInventory size={44}/>
+          <div>
+            <h1>Inventory</h1>
+            <span className="sub">Futsal · Pro Loco</span>
+          </div>
         </div>
         <nav className="nav">
           {NAV.map(x => <button key={x.k} className={tab===x.k?"on":""} onClick={()=>setTab(x.k)}>
@@ -897,6 +919,14 @@ function Dashboard({ctx}){
     .filter(x => x.q < n(x.a.scortaMin));
 
   return <>
+    <div className="home-brand">
+      <LogoInventory size={72}/>
+      <div>
+        <div className="home-brand-tit">Inventory</div>
+        <div className="home-brand-sub">Ordini · Magazzino · Marginalità</div>
+        <div className="home-brand-sub">Futsal Fabbrico · Pro Loco</div>
+      </div>
+    </div>
     <Top title="Quadro generale" hint={dmy(today())}>
       <button className="btn" onClick={()=>setTab("ordini")}>Vai agli ordini</button>
     </Top>
@@ -2259,7 +2289,7 @@ function Setup({ctx}){
   const backup = () => {
     const data = {v:1, esportatoIl:new Date().toISOString(), articoli, fornitori, ordini, prodotti, ubicazioni, movimenti,
                   pl_ubicazioni: plUbicazioni, pl_movimenti: plMovimenti};
-    download(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}), "master_backup_"+today()+".json");
+    download(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}), "inventory_backup_"+today()+".json");
     toast("Backup scaricato","ok");
   };
   const ripristina = async e => {
