@@ -1786,7 +1786,7 @@ function Magazzino({ctx, title="Magazzino"}){
 }
 
 function Giacenze({ctx}){
-  const {articoli, artById, ubicazioni, ubById, movimenti, setMovimenti, toast} = ctx;
+  const {articoli, setArticoli, artById, ubicazioni, setUbicazioni, ubById, movimenti, setMovimenti, toast, proLoco} = ctx;
   const [q, setQ] = useState("");
   const [fUb, setFUb] = useState("");
   const [soloDisp, setSoloDisp] = useState(true);
@@ -1829,18 +1829,33 @@ function Giacenze({ctx}){
       if (res.error){ toast(res.error,"err"); return; }
       const idxA = {}; articoli.forEach(a => idxA[norm(a.descrizione)] = a);
       const idxU = {}; ubicazioni.forEach(u => idxU[norm(u.nome)] = u);
-      const movs = [];
+      const movs = [], nuoviA = [], nuoviU = [];
       res.rows.forEach(r => {
-        const a = idxA[norm(r.descrizione)];
+        let a = idxA[norm(r.descrizione)];
         const qta = r.giacenza || r.quantita;
-        if (!a || !qta) return;
-        const u = idxU[norm(r.ubicazione)] || ubicazioni[0];
+        if (!qta) return;
+        // Magazzino Pro Loco: gli articoli e i luoghi che mancano vengono creati in automatico
+        if (!a && proLoco){
+          a = {id:uid(), codice:r.codice||"", descrizione:r.descrizione, fornitore:r.fornitore||"", categoria:r.categoria||"Pro Loco",
+               um:r.um||"pz", prezzo:r.prezzo||0, iva:r.iva===null?0:r.iva, contenuto:1, umBase:r.um||"pz", prezzoVendita:0,
+               scortaMin:0, cespite:false, note:r.note||"", attivo:true};
+          idxA[norm(a.descrizione)] = a; nuoviA.push(a);
+        }
+        if (!a) return;
+        let u = idxU[norm(r.ubicazione)];
+        if (!u && proLoco && r.ubicazione){
+          u = {id:uid(), nome:r.ubicazione, tipo:"Magazzino", indirizzo:"", responsabile:"", note:""};
+          idxU[norm(u.nome)] = u; nuoviU.push(u);
+        }
+        u = u || ubicazioni[0] || nuoviU[0];
         movs.push({id:uid(), data:today(), tipo:"Rettifica", articoloId:a.id, quantita:qta,
-                   ubicazioneId:u?u.id:"", valoreUnitario:costoUn(a), note:"Import giacenze"});
+                   ubicazioneId:u?u.id:"", valoreUnitario:costoUn(a), note:r.note || "Import giacenze"});
       });
       if (!movs.length){ toast("Nessuna riga abbinata all'anagrafica articoli","err"); return; }
+      if (nuoviA.length) setArticoli(l => [...l, ...nuoviA]);
+      if (nuoviU.length) setUbicazioni(l => [...l, ...nuoviU]);
       setMovimenti(l => [...movs, ...l]);
-      toast(movs.length+" giacenze importate","ok");
+      toast(movs.length+" giacenze importate" + (nuoviA.length ? " · "+nuoviA.length+" articoli nuovi" : ""),"ok");
     }catch(err){ toast("File non leggibile: "+err.message,"err"); }
     e.target.value = "";
   };
