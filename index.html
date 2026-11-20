@@ -233,7 +233,7 @@ const contenuto = a => (n(a.contenuto) > 0 ? n(a.contenuto) : 1);
 const costoBase = a => costoUn(a) / contenuto(a);
 
 /* ============================ storage ============================ */
-const COLLS = ["articoli","fornitori","ordini","prodotti","ubicazioni","movimenti","config"];
+const COLLS = ["articoli","fornitori","ordini","prodotti","ubicazioni","movimenti","pl_ubicazioni","pl_movimenti","config"];
 
 const Store = {
   mode: "local", db: null, unsubs: [], last: {},
@@ -669,6 +669,7 @@ const NAV = [
   {k:"articoli",  l:"Articoli",        i:"▦"},
   {k:"margini",   l:"Marginalità",     i:"◔"},
   {k:"magazzino", l:"Magazzino",       i:"▣"},
+  {k:"proloco",   l:"Magazzino Pro Loco", m:"Pro Loco", i:"▣"},
   {k:"setup",     l:"Impostazioni",    i:"⚙"}
 ];
 
@@ -683,6 +684,9 @@ function App(){
   const [prodotti, setProdotti]     = useColl("prodotti", []);
   const [ubicazioni, setUbicazioni] = useColl("ubicazioni", []);
   const [movimenti, setMovimenti]   = useColl("movimenti", []);
+  // Magazzino Pro Loco: luoghi e movimenti separati, stessa anagrafica articoli
+  const [plUbicazioni, setPlUbicazioni] = useColl("pl_ubicazioni", []);
+  const [plMovimenti, setPlMovimenti]   = useColl("pl_movimenti", []);
 
   const toast = useCallback((msg, kind) => {
     const id = uid();
@@ -703,8 +707,13 @@ function App(){
   const ctx = {
     articoli, setArticoli, fornitori, setFornitori, ordini, setOrdini, prodotti, setProdotti,
     ubicazioni, setUbicazioni, movimenti, setMovimenti,
+    plUbicazioni, setPlUbicazioni, plMovimenti, setPlMovimenti,
     artById, ubById, fornNomi, categorie, toast, mode, setTab
   };
+
+  const plUbById = useMemo(() => Object.fromEntries(plUbicazioni.map(u => [u.id, u])), [plUbicazioni]);
+  const ctxProLoco = {...ctx, ubicazioni: plUbicazioni, setUbicazioni: setPlUbicazioni,
+    movimenti: plMovimenti, setMovimenti: setPlMovimenti, ubById: plUbById, proLoco: true};
 
   const current = NAV.find(x => x.k === tab) || NAV[0];
 
@@ -732,12 +741,13 @@ function App(){
         {tab==="articoli"  && <Articoli ctx={ctx}/>}
         {tab==="margini"   && <Margini ctx={ctx}/>}
         {tab==="magazzino" && <Magazzino ctx={ctx}/>}
+        {tab==="proloco"   && <Magazzino ctx={ctxProLoco} title="Magazzino Pro Loco"/>}
         {tab==="setup"     && <Setup ctx={ctx}/>}
       </div>
 
       <nav className="mobnav">
         {NAV.map(x => <button key={x.k} className={tab===x.k?"on":""} onClick={()=>setTab(x.k)}>
-          <span className="ico">{x.i}</span>{x.l.split(" ")[0]}
+          <span className="ico">{x.i}</span>{x.m || x.l.split(" ")[0]}
         </button>)}
       </nav>
     </div>
@@ -1759,11 +1769,11 @@ function Distinta({prodotto, set, ctx, onClose}){
 /* ============================ MAGAZZINO ============================ */
 const TIPI_MOV = ["Carico","Scarico","Rettifica","Trasferimento"];
 
-function Magazzino({ctx}){
+function Magazzino({ctx, title="Magazzino"}){
   const [sub, setSub] = useState("giacenze");
   const subs = [["giacenze","Giacenze"],["movimenti","Movimenti"],["luoghi","Luoghi di stoccaggio"],["cespiti","Cespiti"]];
   return <>
-    <Top title="Magazzino" hint="Giacenze per luogo, movimenti e beni durevoli">
+    <Top title={title} hint="Giacenze per luogo, movimenti e beni durevoli">
       {subs.map(([k,l]) => <button key={k} className={"btn"+(sub===k?" pri":"")} onClick={()=>setSub(k)}>{l}</button>)}
     </Top>
     <div className="wrap">
@@ -2009,8 +2019,10 @@ function Luoghi({ctx}){
 }
 
 function Cespiti({ctx}){
-  const {articoli, setArticoli, ubicazioni, ubById, toast} = ctx;
-  const lista = articoli.filter(a => a.cespite);
+  const {articoli, setArticoli, ubicazioni, ubById, toast, proLoco} = ctx;
+  // I cespiti con "cespProLoco" stanno solo nel magazzino Pro Loco, gli altri solo nel magazzino principale
+  const lista = articoli.filter(a => a.cespite && !!a.cespProLoco === !!proLoco);
+  const altri = articoli.filter(a => a.cespite && !!a.cespProLoco !== !!proLoco);
   const set = (id,p) => setArticoli(l => l.map(a => a.id===id?{...a,...p}:a));
   const esporta = () => {
     const aoa = [["CODICE","DESCRIZIONE","CATEGORIA CESPITE","FORNITORE","DATA ACQUISTO","QUANTITÀ","VALORE UNITARIO","VALORE TOTALE","ALIQUOTA AMM. %","CONTO CONTABILE","LUOGO","NOTE"]];
@@ -2033,6 +2045,9 @@ function Cespiti({ctx}){
     <div className="toolbar">
       <span className="small muted">Sono cespiti gli articoli con la spunta “Cespite” in anagrafica: attrezzature, frigoriferi, spillatori, gazebo.</span>
       <div className="spacer"/>
+      {altri.length > 0 && <Sel value="" placeholder={proLoco ? "Sposta qui un cespite…" : "Riprendi un cespite dalla Pro Loco…"} style={{width:230}}
+        options={altri.map(a=>({v:a.id,l:a.descrizione}))}
+        onChange={v=>{ if (v){ set(v,{cespProLoco: !!proLoco, cespUbicazione:""}); toast("Cespite spostato","ok"); } }}/>}
       <button className="btn" onClick={esportaJson}>JSON per contabilità</button>
       <button className="btn" onClick={esporta}>Esporta Excel</button>
     </div>
@@ -2048,7 +2063,7 @@ function Cespiti({ctx}){
             <th className="t-right" style={{width:110}}>Valore</th><th className="t-right" style={{width:90}}>Aliquota</th>
             <th style={{width:120}}>Conto</th><th style={{minWidth:140}}>Luogo</th></tr></thead>
           <tbody>{lista.map(a => { const vu = n(a.cespValore)||costoUn(a); const qt = n(a.cespQta)||1; return <tr key={a.id}>
-            <td>{a.descrizione}</td>
+            <td>{a.descrizione}{proLoco && <button className="icobtn" title="Riporta al magazzino principale" style={{marginLeft:6}} onClick={()=>{ set(a.id,{cespProLoco:false, cespUbicazione:""}); toast("Cespite riportato al magazzino principale"); }}>↩</button>}</td>
             <td><input className="cellinput" list="cesp-cat" value={a.cespCategoria||""} onChange={e=>set(a.id,{cespCategoria:e.target.value})}/></td>
             <td><input type="date" className="cellinput" value={a.cespData||""} onChange={e=>set(a.id,{cespData:e.target.value})}/></td>
             <td><Num className="cellinput n" value={a.cespQta || 1} onChange={v=>set(a.id,{cespQta:v})}/></td>
@@ -2068,12 +2083,14 @@ function Cespiti({ctx}){
 /* ============================ IMPOSTAZIONI ============================ */
 function Setup({ctx}){
   const {mode, toast, articoli, setArticoli, fornitori, setFornitori, ordini, setOrdini,
-         prodotti, setProdotti, ubicazioni, setUbicazioni, movimenti, setMovimenti} = ctx;
+         prodotti, setProdotti, ubicazioni, setUbicazioni, movimenti, setMovimenti,
+         plUbicazioni, setPlUbicazioni, plMovimenti, setPlMovimenti} = ctx;
   const [conferma, setConferma] = useState(null);
   const fileRef = useRef(null);
 
   const backup = () => {
-    const data = {v:1, esportatoIl:new Date().toISOString(), articoli, fornitori, ordini, prodotti, ubicazioni, movimenti};
+    const data = {v:1, esportatoIl:new Date().toISOString(), articoli, fornitori, ordini, prodotti, ubicazioni, movimenti,
+                  pl_ubicazioni: plUbicazioni, pl_movimenti: plMovimenti};
     download(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}), "master_backup_"+today()+".json");
     toast("Backup scaricato","ok");
   };
@@ -2087,6 +2104,8 @@ function Setup({ctx}){
       if (d.prodotti) setProdotti(d.prodotti);
       if (d.ubicazioni) setUbicazioni(d.ubicazioni);
       if (d.movimenti) setMovimenti(d.movimenti);
+      if (d.pl_ubicazioni) setPlUbicazioni(d.pl_ubicazioni);
+      if (d.pl_movimenti) setPlMovimenti(d.pl_movimenti);
       toast("Dati ripristinati","ok");
     }catch(err){ toast("File di backup non valido","err"); }
     e.target.value = "";
@@ -2099,8 +2118,8 @@ function Setup({ctx}){
     setFornitori(l => l.length ? l : s.fornitori);
     toast("Dati di esempio caricati","ok");
   };
-  const svuota = () => { [ "articoli","fornitori","ordini","prodotti","ubicazioni","movimenti" ].forEach(k => Store.save(k, []));
-    setArticoli([]); setFornitori([]); setOrdini([]); setProdotti([]); setUbicazioni([]); setMovimenti([]); toast("Dati azzerati"); };
+  const svuota = () => { [ "articoli","fornitori","ordini","prodotti","ubicazioni","movimenti","pl_ubicazioni","pl_movimenti" ].forEach(k => Store.save(k, []));
+    setArticoli([]); setFornitori([]); setOrdini([]); setProdotti([]); setUbicazioni([]); setMovimenti([]); setPlUbicazioni([]); setPlMovimenti([]); toast("Dati azzerati"); };
 
   return <>
     <Top title="Impostazioni" hint="Fornitori, sincronizzazione e dati"/>
