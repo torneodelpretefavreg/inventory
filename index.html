@@ -16,6 +16,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <style>
 :root{
   --ink:#12202f; --ink-2:#1c3047; --ink-3:#2b4763;
@@ -189,6 +190,10 @@ textarea{resize:vertical;min-height:62px}
   .mobnav .ico{font-size:15px}
   .formgrid{grid-template-columns:1fr 1fr}
 }
+/* accesso */
+.login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--ink);padding:16px}
+.login-box{background:var(--paper);border-radius:14px;padding:26px 22px;width:100%;max-width:350px;display:grid;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
+
 /* intestazione home */
 .home-brand{display:flex;align-items:center;gap:16px;padding:18px 22px;background:var(--card);border-bottom:1px solid var(--line-soft)}
 .home-brand-tit{font:700 26px/1.1 Georgia,serif;color:var(--ink);letter-spacing:.01em}
@@ -290,6 +295,8 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "945140546142",
   appId: "1:945140546142:web:b43e812f6c1a306eb0d2cf"
 };
+/* Account staff: la password NON sta nel codice, la verifica Firebase Authentication */
+const STAFF_EMAIL = "torneodelpretefavreg@gmail.com";
 const DB_ROOT = "master";     // collection Firestore
 const LS_PREFIX = "master_v1_";
 
@@ -869,6 +876,7 @@ function App(){
         <div className="sidefoot">
           <span className="dot" style={{background: mode==="cloud" ? "#57c08a" : "#d9a227"}}/>
           {mode==="cloud" ? "Sincronizzato" : "Solo questo dispositivo"}
+          {mode==="cloud" && <button className="btn sm" style={{marginTop:8,width:"100%",justifyContent:"center",background:"transparent",color:"#cfd8e2",borderColor:"rgba(255,255,255,.2)"}} onClick={esci}>Esci</button>}
         </div>
       </aside>
 
@@ -2320,7 +2328,9 @@ function Setup({ctx}){
     setArticoli([]); setFornitori([]); setOrdini([]); setProdotti([]); setUbicazioni([]); setMovimenti([]); setPlUbicazioni([]); setPlMovimenti([]); toast("Dati azzerati"); };
 
   return <>
-    <Top title="Impostazioni" hint="Fornitori, sincronizzazione e dati"/>
+    <Top title="Impostazioni" hint="Fornitori, sincronizzazione e dati">
+      {mode==="cloud" && <button className="btn" onClick={esci}>Esci</button>}
+    </Top>
     <div className="wrap grid" style={{gap:16, maxWidth:1000}}>
       <div className="card">
         <header><h3>Fornitori</h3><div className="spacer"/>
@@ -2412,9 +2422,56 @@ let _etqRaf = 0;
 new MutationObserver(() => { cancelAnimationFrame(_etqRaf); _etqRaf = requestAnimationFrame(etichettaTabelle); })
   .observe(document.getElementById("root"), {childList:true, subtree:true, characterData:true});
 
+/* ============================ accesso ============================ */
+function msgAccesso(e){
+  const c = (e && e.code) || "";
+  if (/invalid-credential|wrong-password|invalid-login-credentials|missing-password/.test(c)) return "Password errata.";
+  if (/user-not-found/.test(c)) return "Account non ancora creato su Firebase.";
+  if (/too-many-requests/.test(c)) return "Troppi tentativi: riprova tra qualche minuto.";
+  if (/network-request-failed/.test(c)) return "Nessuna connessione a internet.";
+  if (/operation-not-allowed|configuration-not-found/.test(c)) return "Accesso con email non attivo nel progetto Firebase.";
+  return "Accesso non riuscito" + (c ? " ("+c+")" : "") + ".";
+}
+function esci(){ if (confirm("Uscire da Inventory?")) firebase.auth().signOut(); }
+
+function Login(){
+  const [pw, setPw] = useState(""); const [err, setErr] = useState(""); const [busy, setBusy] = useState(false);
+  const entra = async e => {
+    e.preventDefault(); if (busy || !pw) return;
+    setErr(""); setBusy(true);
+    try{ await firebase.auth().signInWithEmailAndPassword(STAFF_EMAIL, pw); }
+    catch(er){ setErr(msgAccesso(er)); setPw(""); }
+    finally{ setBusy(false); }
+  };
+  return <div className="login">
+    <form onSubmit={entra} className="login-box">
+      <div style={{display:"flex",alignItems:"center",gap:12}}>
+        <LogoInventory size={56}/>
+        <div><div className="home-brand-tit" style={{fontSize:24}}>Inventory</div><div className="home-brand-sub">Futsal Fabbrico · Pro Loco</div></div>
+      </div>
+      <label htmlFor="pw" className="small muted" style={{fontWeight:600,marginTop:6}}>Password</label>
+      <input id="pw" type="password" autoFocus autoComplete="current-password" value={pw} onChange={e=>setPw(e.target.value)} style={{fontSize:16,padding:"11px 12px"}}/>
+      {err && <div role="alert" className="neg small">{err}</div>}
+      <button type="submit" className="btn gold" disabled={busy} style={{justifyContent:"center",padding:"11px 14px",fontSize:15}}>{busy ? "Accesso…" : "Entra"}</button>
+    </form>
+  </div>;
+}
+
+/* Mostra l'app solo a chi ha fatto l'accesso */
+function AuthGate(){
+  const [stato, setStato] = useState("attesa");
+  useEffect(() => {
+    if (Store.mode !== "cloud" || !firebase.auth) { setStato("dentro"); return; }
+    return firebase.auth().onAuthStateChanged(u => setStato(u ? "dentro" : "fuori"));
+  }, []);
+  if (stato === "attesa") return <div className="login"><LogoInventory size={64}/></div>;
+  if (stato === "fuori") return <Login/>;
+  return <App/>;
+}
+
 /* ============================ avvio ============================ */
 Store.init();
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+ReactDOM.createRoot(document.getElementById("root")).render(<AuthGate/>);
 </script>
 </body>
 </html>
