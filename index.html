@@ -662,6 +662,46 @@ const STATI = ["Bozza","Da inviare","Inviato","Confermato","Ricevuto","Annullato
 const STATO_CLS = {Bozza:"", "Da inviare":"b", Inviato:"n", Confermato:"n", Ricevuto:"g", Annullato:"r"};
 const UM_LIST = ["pz","cf","kg","g","l","ml","fusto","cartone","bancale"];
 
+const PL_SEED_ID = "pl_seed_2026_11";
+const PL_SEED = [["BICCHIERI 350 ML", 1100, "pz", ""], ["BICCHIERI 390 ML", 300, "pz", ""], ["BICCHIERI 400 ML", 440, "pz", ""], ["COPPETTE GELATO", 320, "pz", ""], ["BICCHIERI CAFFÈ", 240, "pz", ""], ["CAPSULE CAFFÈ", 425, "pz", ""], ["BUSTE DA ASPORTO NATALIZIE", 1, "scatola", "scatola piena"], ["BICCHIERI 250 ML", 200, "pz", ""], ["TOVAGLIA DI CARTA", 6, "rotolo", ""], ["COSTUMI VARI", 1, "scatola", ""], ["CAVI IMPIANTO AUDIO VECCHIO", 1, "scatola", ""], ["CESTINI IN VIMINI GRANDI", 6, "pz", ""], ["CUFFIE DA CUCINA", 1, "scatola", ""], ["ROTOLO SCOTTEX GRANDE", 2, "rotolo", ""], ["SACCHETTI AVIS", 1, "scatola", ""], ["ALLUMINIO", 450, "m", ""], ["SALE FINO", 2, "kg", ""], ["PELLICOLA TRASPARENTE", 1, "rotolo", ""], ["CARTA FORNO", 1, "rotolo", "rotolo piccolo"], ["GUANTI MONOUSO", 250, "pz", ""], ["SPUGNE", 2, "pz", ""], ["PAGLIETTA", 1, "pz", ""], ["PANNI IN MICROFIBRA", 4, "pz", ""], ["MACCHINA PER POPCORN", 1, "pz", ""], ["POSATE MONOUSO E MISTE", 1, "scatola", ""], ["KIT CAFFÈ", 2, "scatola", ""], ["PIATTI DESSERT", 600, "pz", ""], ["PIATTI PIANI", 100, "pz", ""], ["SCATOLINE MONOPORZIONE", 40, "pz", ""], ["CANDELE", 27, "pz", ""], ["MACCHINETTA PER IL CAFFÈ", 1, "pz", ""], ["MULTIUSO SENZA RISCIACQUO", 1, "pz", ""], ["VASSOI", 1, "lotto", "(quantità non contata: tanti)"], ["TOVAGLIETTE", 1, "lotto", "(quantità non contata: tanti)"], ["TOVAGLIOLI", 270, "pz", ""], ["CONTAMONETE ELETTRICO", 1, "pz", ""], ["LATTINE DI BIRRA", 2, "pz", ""], ["ABSOLUT VODKA 0,7 L", 1, "bottiglia", ""], ["AMARO DEL CAPO 0,7 L", 0.5, "bottiglia", "mezza bottiglia"], ["OLIO D'OLIVA", 1, "bottiglia", ""], ["PIASTRE", 2, "pz", ""], ["PORTACHIAVI", 23, "pz", ""], ["CONTENITORI TOVAGLIOLI DA BAR", 3, "pz", ""], ["GREMBIULI SFOGLINE", 1, "scatola", ""], ["MARSUPI", 4, "pz", ""], ["BUSTE PER SOLDI", 6, "pz", ""], ["TESSERE CON PASS", 1, "pz", ""], ["COCCARDE PER CARNEVALE", 1, "scatola", ""], ["CARTA IGIENICA", 10, "rotolo", ""], ["BANDIERINE ITALIANE", 1, "lotto", "(quantità non contata: tanti)"], ["SEGNATAVOLI", 1, "lotto", "(quantità non contata: tanti)"], ["PRONTO SOCCORSO (SCATOLA)", 1, "scatola", ""], ["STECCHINI PER PATATINE", 1, "scatola", "scatola, tanti"], ["STUZZICADENTI", 1, "lotto", "(quantità non contata: tanti)"], ["ROTOLINI PER STAMPANTI", 1, "lotto", "(quantità non contata: tanti)"], ["CASSETTI PER STAMPANTE", 2, "pz", ""], ["PENNARELLI E FORBICI", 1, "scatola", ""], ["GAZEBO", 14, "pz", ""], ["PICCHETTI PER GAZEBO", 1, "scatola", ""], ["ETICHETTATRICE", 1, "pz", ""], ["TONER PER ETICHETTATRICE", 4, "pz", ""], ["BATTERIE AA", 20, "pz", ""], ["BATTERIE GRANDI", 3, "pz", ""], ["AURICOLARI", 3, "pz", ""], ["CARICA PILE", 1, "pz", ""], ["PALLINE PER LA LOTTERIA", 1, "lotto", "quantità non indicata"], ["CARTELLI INDICAZIONI", 1, "scatola", ""], ["MACCHINA VERIFICA BANCONOTE", 2, "pz", ""], ["CAVI AUX IMPIANTO AUDIO", 4, "pz", ""], ["VASCHETTE METALLO GRANDI", 10, "pz", ""], ["VASCHETTE METALLO PICCOLE", 10, "pz", ""], ["CASSETTO PORTAMONETE", 1, "pz", ""], ["ARCHIVI DOCUMENTI PRO LOCO", 2, "scatola", ""], ["CASSETTE DI LEGNO DA FRUTTA", 2, "pz", ""], ["SCATOLE GIOCHI PER BAMBINI", 3, "scatola", "pignatte, costumi e sorprese giochi"], ["ACQUA NATURALE PICCOLA", 7, "bottiglia", ""], ["ACQUA NATURALE GRANDE", 2, "bottiglia", ""], ["ACQUA FRIZZANTE PICCOLA", 1, "bottiglia", ""], ["MATERIALE ELETTRICO", 1, "lotto", "quantità non indicata"], ["MESTOLO DI LEGNO", 1, "pz", ""], ["PENTOLE GRANDI", 2, "pz", ""], ["STRACCI", 1, "busta", "busta grande"], ["MARSUPI PRONTO SOCCORSO", 2, "pz", ""], ["GIUBBINI GIALLI SICUREZZA", 5, "pz", ""], ["GREMBIULI", 1, "lotto", "(quantità non contata: tanti)"], ["BOLLITORI", 2, "pz", ""], ["SEDIE DI LEGNO", 10, "pz", ""], ["TAVOLI DI LEGNO", 5, "pz", ""], ["PALETTE TRAFFICO MAGNALONGA", 1, "scatola", ""], ["PALLINE DI NATALE", 1, "scatola", ""], ["FESTONI NATALE", 1, "scatola", ""], ["CASSETTA ATTREZZI", 1, "pz", ""], ["BUSTE", 1, "busta", ""], ["SACCHETTI DI SABBIA", 6, "pz", ""], ["NEON LUCI", 10, "pz", ""], ["SCALA", 1, "pz", ""], ["TREPPIEDE MANIFESTI", 8, "pz", ""], ["GONFIABILE A FORMA DI GHIACCIOLO", 1, "pz", ""], ["CARICABATTERIE RADIOLINE", 5, "pz", "mancano le radioline"], ["ETICHETTE ROTONDE", 1, "scatola", ""], ["ETICHETTE RETTANGOLARI ARANCIONI", 1, "rotolo", ""], ["CIAPETTI", 1, "scatola", ""], ["CASSETTA PRONTO SOCCORSO", 1, "pz", ""], ["SCOTCH, PENNARELLI E FORBICI", 1, "scatola", ""], ["FORNO", 1, "pz", ""], ["MATERIALE PER IL GAZEBO GRANDE", 1, "lotto", "quantità non indicata"], ["PIASTRA", 1, "pz", ""], ["ATTREZZI CUCINA", 1, "scatola", ""], ["CASSA MUSICA", 1, "pz", ""], ["FORNO GRANDE PER PIZZA", 1, "pz", ""], ["PIASTRA DOPPIA", 1, "pz", ""], ["AFFETTATRICE", 1, "pz", ""], ["GRIGLIE A GAS", 2, "pz", ""], ["FUOCO GRANDE", 1, "pz", ""], ["RUOTE CARIOLINO", 1, "scatola", ""], ["CARIOLINO", 1, "pz", ""], ["FREEZER", 1, "pz", ""], ["TELI GAZEBO", 1, "lotto", "(quantità non contata: tanti)"], ["ALBERO DI NATALE", 1, "pz", ""], ["ESPOSITORI", 20, "pz", ""], ["PATTUMI UMIDO", 5, "pz", ""]];
+
+/* Caricamento una tantum dell'inventario Pro Loco (novembre 2026).
+   Gira in una transazione: se il documento PL_SEED_ID esiste già non fa nulla, così non duplica mai. */
+async function seedProLoco(){
+  if (Store.mode !== "cloud" || !Store.db) return;
+  const col = Store.db.collection(DB_ROOT);
+  const refs = {seed: col.doc(PL_SEED_ID), art: col.doc("articoli"), ub: col.doc("pl_ubicazioni"), mov: col.doc("pl_movimenti")};
+  try{
+    await Store.db.runTransaction(async tx => {
+      const [s, a, u, m] = await Promise.all([tx.get(refs.seed), tx.get(refs.art), tx.get(refs.ub), tx.get(refs.mov)]);
+      if (s.exists) return;
+      const articoli = (a.exists && a.data().items) || [];
+      const ubicazioni = (u.exists && u.data().items) || [];
+      const movimenti = (m.exists && m.data().items) || [];
+      let luogo = ubicazioni.find(x => norm(x.nome) === norm("Magazzino Pro Loco"));
+      const nuoviU = [];
+      if (!luogo){ luogo = {id:uid(), nome:"Magazzino Pro Loco", tipo:"Magazzino", indirizzo:"", responsabile:"", note:""}; nuoviU.push(luogo); }
+      const idxA = {}; articoli.forEach(x => idxA[norm(x.descrizione)] = x);
+      const nuoviA = [], movs = [];
+      PL_SEED.forEach(([descr, qta, um, nota]) => {
+        let art = idxA[norm(descr)];
+        if (!art){
+          art = {id:uid(), codice:"", descrizione:descr, fornitore:"", categoria:"Pro Loco", um, prezzo:0, iva:0,
+                 contenuto:1, umBase:um, prezzoVendita:0, scortaMin:0, cespite:false, note:nota, attivo:true};
+          idxA[norm(descr)] = art; nuoviA.push(art);
+        }
+        movs.push({id:uid(), data:"2026-11-20", tipo:"Rettifica", articoloId:art.id, quantita:qta,
+                   ubicazioneId:luogo.id, valoreUnitario:0, note: nota || "Inventario iniziale Pro Loco"});
+      });
+      const ts = Date.now();
+      tx.set(refs.art, {items:[...articoli, ...nuoviA], ts});
+      tx.set(refs.ub,  {items:[...ubicazioni, ...nuoviU], ts});
+      tx.set(refs.mov, {items:[...movs, ...movimenti], ts});
+      tx.set(refs.seed, {fatto:true, righe:movs.length, ts});
+    });
+  }catch(e){ console.warn("seed Pro Loco", e); }
+}
+
 /* ============================ APP ============================ */
 const NAV = [
   {k:"dashboard", l:"Quadro generale", i:"◧"},
@@ -694,6 +734,7 @@ function App(){
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3600);
   }, []);
   useEffect(() => { localStorage.setItem(LS_PREFIX+"tab", tab); }, [tab]);
+  useEffect(() => { seedProLoco(); }, []);
 
   const artById = useMemo(() => Object.fromEntries(articoli.map(a => [a.id, a])), [articoli]);
   const ubById  = useMemo(() => Object.fromEntries(ubicazioni.map(u => [u.id, u])), [ubicazioni]);
