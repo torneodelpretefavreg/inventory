@@ -187,6 +187,81 @@ textarea{resize:vertical;min-height:62px}
   .mobnav .ico{font-size:15px}
   .formgrid{grid-template-columns:1fr 1fr}
 }
+/* ingresso magazzino */
+.strade{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;max-width:900px}
+.strada{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;cursor:pointer;
+  background:var(--card);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:10px;padding:20px 20px 18px}
+.strada:hover{border-color:#b9b5a8;border-left-color:var(--gold);background:#fffdf8}
+.strada:active{transform:translateY(1px)}
+.strada-ico{font-size:28px;line-height:1}
+.strada-tit{font:600 22px/1.2 Georgia,serif;color:var(--ink)}
+.strada-desc{color:var(--muted);font-size:13px}
+.strada-dati{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--text);margin-top:6px}
+.strada-go{margin-top:8px;font-weight:600;color:var(--gold)}
+.subtabs{display:flex;gap:6px;overflow-x:auto;padding:10px 22px 0;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.subtabs::-webkit-scrollbar{display:none}
+.subtabs button{flex:0 0 auto;border:1px solid var(--line);background:var(--card);border-radius:99px;padding:6px 14px;font-size:13px;cursor:pointer;white-space:nowrap}
+.subtabs button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+
+/* telefono */
+@media(max-width:860px){
+  .main{padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+  .subtabs{padding:10px 12px 0}
+  .topbar{position:static;gap:8px 10px}
+  .topbar h2{font-size:19px;width:100%}
+  .topbar .hint{width:100%;margin-top:-4px}
+  .topbar .spacer{display:none}
+  .toasts{left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom))}
+  .toast{max-width:none}
+}
+@media(max-width:700px){
+  /* niente zoom automatico di iPhone sui campi */
+  input:not([type]),input[type=text],input[type=number],input[type=date],select,textarea,.cellinput{font-size:16px}
+  .cellinput{border-color:var(--line);background:#fff;padding:6px 8px}
+  .btn{padding:9px 13px;font-size:14px}
+  .btn.sm{padding:6px 10px;font-size:13px}
+  .icobtn{padding:8px 10px;font-size:16px}
+  .toolbar{gap:8px}
+  .search{flex:1 1 100%;width:100%;max-width:none;min-width:0}
+  .search::before{top:50%;transform:translateY(-50%)}
+  .search input{padding-left:30px;width:100%}
+  .toolbar > select{flex:1 1 100%;width:100% !important}
+  .kpis{grid-template-columns:1fr 1fr;gap:8px}
+  .kpi{padding:10px 12px}
+  .kpi .val{font-size:19px}
+  .grid{grid-template-columns:1fr !important}
+  .formgrid{grid-template-columns:1fr}
+  .formgrid > .f{grid-column:auto !important}
+  .scroll{max-height:none;overflow:visible}
+  .card .body{padding:12px}
+  .wrap{padding:12px 10px 24px}
+
+  /* tabelle -> schede */
+  table,tbody,tfoot,tr,td{display:block;width:100%}
+  thead{display:none}
+  tbody tr,tfoot tr{display:flex;flex-wrap:wrap;align-items:center;padding:10px 12px;border-bottom:1px solid var(--line);gap:2px 0}
+  tbody tr:hover td{background:transparent}
+  td{flex:1 1 100%;border:0;padding:3px 0 3px 40%;position:relative;text-align:right !important;min-height:28px;word-break:break-word}
+  td::before{content:attr(data-label);position:absolute;left:0;top:7px;width:38%;text-align:left;
+    font:600 11.5px/1.25 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--muted);white-space:normal}
+  td[data-label=""]{padding-left:0;flex:0 1 auto;width:auto;margin-left:auto}
+  td[data-label=""]::before{display:none}
+  td[data-title]{flex:1 1 60%;width:auto;padding-left:0;text-align:left !important;font-weight:600;font-size:15px;order:-1}
+  td[data-title]::before{display:none}
+  td[data-title] .cellinput{font-weight:600}
+  tbody tr > td:first-child[data-label=""]{order:-2;margin-left:0;margin-right:10px}
+  tfoot tr{background:#f7f6f2}
+  tfoot td{position:static;background:transparent;border:0}
+  tfoot td:empty{display:none}
+
+  /* finestre a tutto schermo */
+  .ovl{padding:0;align-items:stretch}
+  .modal,.modal.lg{max-width:none;border-radius:0;min-height:100%;display:flex;flex-direction:column}
+  .modal .body{flex:1;padding:14px}
+  .modal>footer{position:sticky;bottom:0;background:var(--card);padding:10px 14px calc(10px + env(safe-area-inset-bottom));flex-wrap:wrap}
+  .modal>footer .btn{flex:1 1 auto;justify-content:center}
+  .modal>header{position:sticky;top:0;background:var(--card);z-index:2}
+}
 @media print{.side,.topbar,.mobnav,.toolbar,.otabs{display:none}}
 </style>
 </head>
@@ -709,12 +784,11 @@ const NAV = [
   {k:"articoli",  l:"Articoli",        i:"▦"},
   {k:"margini",   l:"Marginalità",     i:"◔"},
   {k:"magazzino", l:"Magazzino",       i:"▣"},
-  {k:"proloco",   l:"Magazzino Pro Loco", m:"Pro Loco", i:"▣"},
   {k:"setup",     l:"Impostazioni",    i:"⚙"}
 ];
 
 function App(){
-  const [tab, setTab] = useState(() => localStorage.getItem(LS_PREFIX+"tab") || "dashboard");
+  const [tab, setTab] = useState(() => { const t = localStorage.getItem(LS_PREFIX+"tab") || "dashboard"; return t === "proloco" ? "magazzino" : t; });
   const [toasts, setToasts] = useState([]);
   const [mode] = useState(() => Store.mode);
 
@@ -781,8 +855,7 @@ function App(){
         {tab==="ordini"    && <Ordini ctx={ctx}/>}
         {tab==="articoli"  && <Articoli ctx={ctx}/>}
         {tab==="margini"   && <Margini ctx={ctx}/>}
-        {tab==="magazzino" && <Magazzino ctx={ctx}/>}
-        {tab==="proloco"   && <Magazzino ctx={ctxProLoco} title="Magazzino Pro Loco"/>}
+        {tab==="magazzino" && <MagazzinoScelta ctx={ctx} ctxProLoco={ctxProLoco}/>}
         {tab==="setup"     && <Setup ctx={ctx}/>}
       </div>
 
@@ -1810,13 +1883,52 @@ function Distinta({prodotto, set, ctx, onClose}){
 /* ============================ MAGAZZINO ============================ */
 const TIPI_MOV = ["Carico","Scarico","Rettifica","Trasferimento"];
 
-function Magazzino({ctx, title="Magazzino"}){
+/* Ingresso del magazzino: due strade, Futsal e Pro Loco */
+function MagazzinoScelta({ctx, ctxProLoco}){
+  const [quale, setQuale] = useState(null);
+  if (quale === "futsal")  return <Magazzino ctx={ctx} title="Magazzino Futsal" onBack={()=>setQuale(null)} altro={["Pro Loco", ()=>setQuale("proloco")]}/>;
+  if (quale === "proloco") return <Magazzino ctx={ctxProLoco} title="Magazzino Pro Loco" onBack={()=>setQuale(null)} altro={["Futsal", ()=>setQuale("futsal")]}/>;
+  const info = c => {
+    const gm = giacenzeMap(c.movimenti);
+    const pos = Object.entries(gm).filter(([k,q]) => Math.abs(q) > 0.0001 && c.artById[k.split("|")[0]]);
+    const val = pos.reduce((s,[k,q]) => s + costoUn(c.artById[k.split("|")[0]])*q, 0);
+    return {pos: pos.length, val, luoghi: c.ubicazioni.length};
+  };
+  const strade = [
+    {k:"futsal",  t:"Futsal",   d:"Bar, cucina e attrezzature del Futsal Fabbrico", ico:"⚽", c:ctx},
+    {k:"proloco", t:"Pro Loco", d:"Materiale, attrezzature e scorte della Pro Loco", ico:"🏛", c:ctxProLoco}
+  ];
+  return <>
+    <Top title="Magazzino" hint="Scegli quale magazzino aprire"/>
+    <div className="wrap">
+      <div className="strade">
+        {strade.map(x => { const i = info(x.c); return <button key={x.k} className="strada" onClick={()=>setQuale(x.k)}>
+          <span className="strada-ico">{x.ico}</span>
+          <span className="strada-tit">{x.t}</span>
+          <span className="strada-desc">{x.d}</span>
+          <span className="strada-dati">
+            <span><b>{i.pos}</b> articoli in giacenza</span>
+            <span><b>{i.luoghi}</b> {i.luoghi === 1 ? "luogo" : "luoghi"}</span>
+            {i.val > 0 && <span><b>{eur(i.val,0)}</b> di valore</span>}
+          </span>
+          <span className="strada-go">Apri →</span>
+        </button>; })}
+      </div>
+    </div>
+  </>;
+}
+
+function Magazzino({ctx, title="Magazzino", onBack, altro}){
   const [sub, setSub] = useState("giacenze");
   const subs = [["giacenze","Giacenze"],["movimenti","Movimenti"],["luoghi","Luoghi di stoccaggio"],["cespiti","Cespiti"]];
   return <>
     <Top title={title} hint="Giacenze per luogo, movimenti e beni durevoli">
-      {subs.map(([k,l]) => <button key={k} className={"btn"+(sub===k?" pri":"")} onClick={()=>setSub(k)}>{l}</button>)}
+      {onBack && <button className="btn" onClick={onBack}>← Magazzini</button>}
+      {altro && <button className="btn" onClick={altro[1]}>Vai a {altro[0]}</button>}
     </Top>
+    <div className="subtabs">
+      {subs.map(([k,l]) => <button key={k} className={sub===k?"on":""} onClick={()=>setSub(k)}>{l}</button>)}
+    </div>
     <div className="wrap">
       {sub==="giacenze"  && <Giacenze ctx={ctx}/>}
       {sub==="movimenti" && <Movimenti ctx={ctx}/>}
@@ -2242,6 +2354,33 @@ function Setup({ctx}){
       onClose={()=>setConferma(null)} onYes={svuota}/>}
   </>;
 }
+
+/* ============================ tabelle su telefono ============================ */
+/* Copia l'intestazione di ogni colonna sulle celle (data-label): su schermi stretti
+   il CSS mostra ogni riga come una scheda "etichetta: valore". */
+function etichettaTabelle(){
+  document.querySelectorAll("#root table").forEach(t => {
+    const heads = [...t.querySelectorAll("thead th")].map(th => th.textContent.trim());
+    // colonna "titolo" della scheda: quella del nome, altrimenti la prima con intestazione
+    let tIdx = heads.findIndex(h => /^(articolo|prodotto|nome|bene|descrizione|fornitore)$/i.test(h));
+    if (tIdx < 0) tIdx = heads.findIndex(h => h !== "");
+    t.querySelectorAll("tbody tr, tfoot tr").forEach(tr => {
+      let i = 0;
+      const body = tr.parentNode.tagName === "TBODY";
+      [...tr.children].forEach(td => {
+        const l = heads[i] || "";
+        if (td.getAttribute("data-label") !== l) td.setAttribute("data-label", l);
+        const isT = body && i === tIdx && (td.colSpan || 1) === 1;
+        if (isT){ if (!td.hasAttribute("data-title")) td.setAttribute("data-title",""); }
+        else if (td.hasAttribute("data-title")) td.removeAttribute("data-title");
+        i += td.colSpan || 1;
+      });
+    });
+  });
+}
+let _etqRaf = 0;
+new MutationObserver(() => { cancelAnimationFrame(_etqRaf); _etqRaf = requestAnimationFrame(etichettaTabelle); })
+  .observe(document.getElementById("root"), {childList:true, subtree:true, characterData:true});
 
 /* ============================ avvio ============================ */
 Store.init();
