@@ -272,6 +272,22 @@ textarea{resize:vertical;min-height:62px}
   td[data-title] .cellinput{font-weight:600}
   tbody tr > td:first-child[data-label=""]{order:-2;margin-left:0;margin-right:10px}
   tfoot tr{background:#f7f6f2}
+  td{padding-top:2px;padding-bottom:2px}
+  td input:not([type=checkbox]),td select,td .cellinput{padding:7px 9px}
+
+  /* righe compatte: chiuse mostrano solo nome e 1-2 valori, si aprono toccandole */
+  table[data-compatta] tbody tr{cursor:pointer;-webkit-tap-highlight-color:transparent}
+  table[data-compatta] tbody tr:not([data-aperta]) > td:not([data-title]):not([data-key]):not(:first-child[data-label=""]){display:none}
+  table[data-compatta] tbody tr:not([data-aperta]) > td[data-key]{flex:0 1 auto;width:auto;padding:2px 16px 0 0;text-align:left !important;font-size:12.5px;color:var(--muted);min-height:0}
+  table[data-compatta] tbody tr:not([data-aperta]) > td[data-key]::before{position:static;display:inline;width:auto;margin-right:5px;font-size:11.5px}
+  table[data-compatta] tbody tr::after{content:"Dettagli ▾";order:99;margin-left:auto;font-size:12.5px;font-weight:600;color:var(--gold);padding:4px 0 0 10px}
+  table[data-compatta] tbody tr[data-aperta]{background:#fffdf8}
+  table[data-compatta] tbody tr > td[data-title]{flex:1 1 calc(100% - 50px)}
+  table[data-compatta] tbody tr:not([data-aperta]):not(:has(td[data-key])) > td[data-title]{flex:1 1 0;min-width:0}
+  table[data-compatta] tbody tr:not([data-aperta]) > td[data-title] .cellinput,
+  table[data-compatta] tbody tr:not([data-aperta]) > td[data-title] > input:not([type=checkbox]){border-color:transparent;background:transparent;padding:2px 0;font-size:16px}
+  table[data-compatta] tbody tr:not([data-aperta]) > td[data-key]{font-size:12px;padding-right:12px}
+  table[data-compatta] tbody tr[data-aperta]::after{content:"Chiudi ▴"}
   tfoot td{position:static;background:transparent;border:0}
   tfoot td:empty{display:none}
 
@@ -307,7 +323,7 @@ const FIREBASE_CONFIG = {
 const STAFF_EMAIL = "torneodelpretefavreg@gmail.com";
 const DB_ROOT = "master";
 // versione dell'app: ad ogni pubblicazione va aggiornata insieme a version.json
-const APP_VERSION = "2026.11.21-1";     // collection Firestore
+const APP_VERSION = "2026.11.21-2";     // collection Firestore
 const LS_PREFIX = "master_v1_";
 
 /* ============================ utils ============================ */
@@ -2421,8 +2437,13 @@ function etichettaTabelle(){
     // colonna "titolo" della scheda: quella del nome, altrimenti la prima con intestazione
     let tIdx = heads.findIndex(h => /^(articolo|prodotto|nome|bene|descrizione|fornitore)$/i.test(h));
     if (tIdx < 0) tIdx = heads.findIndex(h => h !== "");
+    // tabelle con molti campi modificabili: sul telefono le righe partono chiuse (si aprono toccandole)
+    const r0 = t.querySelector("tbody tr");
+    const campi = r0 ? r0.querySelectorAll("input:not([type=checkbox]),select,textarea").length : 0;
+    if (campi >= 4){ if (!t.hasAttribute("data-compatta")) t.setAttribute("data-compatta",""); }
+    else if (t.hasAttribute("data-compatta")) t.removeAttribute("data-compatta");
     t.querySelectorAll("tbody tr, tfoot tr").forEach(tr => {
-      let i = 0;
+      let i = 0, chiavi = 0;
       const body = tr.parentNode.tagName === "TBODY";
       [...tr.children].forEach(td => {
         const l = heads[i] || "";
@@ -2430,11 +2451,22 @@ function etichettaTabelle(){
         const isT = body && i === tIdx && (td.colSpan || 1) === 1;
         if (isT){ if (!td.hasAttribute("data-title")) td.setAttribute("data-title",""); }
         else if (td.hasAttribute("data-title")) td.removeAttribute("data-title");
+        // fino a 2 valori calcolati (senza campi) restano visibili anche a riga chiusa
+        const isK = body && !isT && l !== "" && chiavi < 2 && !td.querySelector("input,select,textarea,button") && td.textContent.trim() !== "";
+        if (isK){ chiavi++; if (!td.hasAttribute("data-key")) td.setAttribute("data-key",""); }
+        else if (td.hasAttribute("data-key")) td.removeAttribute("data-key");
         i += td.colSpan || 1;
       });
     });
   });
 }
+// tocco su una riga chiusa (fuori dai campi): la apre o la richiude
+document.addEventListener("click", e => {
+  if (window.innerWidth > 700) return;
+  const tr = e.target.closest && e.target.closest("table[data-compatta] tbody tr");
+  if (!tr || e.target.closest("input,select,textarea,button,a,label")) return;
+  if (tr.hasAttribute("data-aperta")) tr.removeAttribute("data-aperta"); else tr.setAttribute("data-aperta","");
+});
 let _etqRaf = 0;
 new MutationObserver(() => { cancelAnimationFrame(_etqRaf); _etqRaf = requestAnimationFrame(etichettaTabelle); })
   .observe(document.getElementById("root"), {childList:true, subtree:true, characterData:true});
