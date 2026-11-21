@@ -7,6 +7,8 @@
 <meta name="theme-color" content="#12202f">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2312202f'/><rect x='18' y='22' width='5' height='56' fill='%23f2f1ec'/><rect x='27' y='22' width='3' height='56' fill='%23f2f1ec'/><rect x='34' y='22' width='8' height='56' fill='%23b8811b'/><rect x='46' y='22' width='3' height='56' fill='%23f2f1ec'/><rect x='53' y='22' width='5' height='56' fill='%23f2f1ec'/><rect x='62' y='22' width='3' height='56' fill='%23f2f1ec'/><rect x='69' y='22' width='8' height='56' fill='%23f2f1ec'/><rect x='81' y='22' width='3' height='56' fill='%23f2f1ec'/></svg>">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#12202f">
 <meta name="apple-mobile-web-app-title" content="Inventory">
 <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
@@ -190,6 +192,12 @@ textarea{resize:vertical;min-height:62px}
   .mobnav .ico{font-size:15px}
   .formgrid{grid-template-columns:1fr 1fr}
 }
+/* avviso nuova versione */
+.inv-update{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));z-index:400;display:flex;align-items:center;gap:12px;
+  background:var(--ink);color:#fff;padding:10px 10px 10px 16px;border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,.3);font-size:13.5px;max-width:calc(100vw - 24px)}
+.inv-update button{border:0;background:var(--gold);color:#1b1405;font-weight:600;border-radius:8px;padding:8px 14px;white-space:nowrap;cursor:pointer}
+@media(max-width:860px){.inv-update{bottom:calc(76px + env(safe-area-inset-bottom,0px));width:calc(100vw - 24px);justify-content:space-between}}
+
 /* accesso */
 .login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--ink);padding:16px}
 .login-box{background:var(--paper);border-radius:14px;padding:26px 22px;width:100%;max-width:350px;display:grid;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.3)}
@@ -245,7 +253,7 @@ textarea{resize:vertical;min-height:62px}
   .grid{grid-template-columns:1fr !important}
   .formgrid{grid-template-columns:1fr}
   .formgrid > .f{grid-column:auto !important}
-  .scroll{max-height:none;overflow:visible}
+  .scroll{max-height:none !important;overflow:visible !important}
   .card .body{padding:12px}
   .wrap{padding:12px 10px 24px}
 
@@ -297,7 +305,9 @@ const FIREBASE_CONFIG = {
 };
 /* Account staff: la password NON sta nel codice, la verifica Firebase Authentication */
 const STAFF_EMAIL = "torneodelpretefavreg@gmail.com";
-const DB_ROOT = "master";     // collection Firestore
+const DB_ROOT = "master";
+// versione dell'app: ad ogni pubblicazione va aggiornata insieme a version.json
+const APP_VERSION = "2026.11.21-1";     // collection Firestore
 const LS_PREFIX = "master_v1_";
 
 /* ============================ utils ============================ */
@@ -2349,6 +2359,13 @@ function Setup({ctx}){
       </div>
 
       <div className="card">
+        <header><h3>App</h3></header>
+        <div className="body">
+          <p className="small muted" style={{margin:"0 0 10px"}}>Versione {APP_VERSION}. Le nuove versioni si propongono da sole con un avviso in basso; se un aggiornamento non compare, tocca qui.</p>
+          <button className="btn" onClick={aggiornaApp}>Aggiorna app</button>
+        </div>
+      </div>
+      <div className="card">
         <header><h3>Sincronizzazione</h3></header>
         <div className="body">
           <p style={{marginTop:0}}>
@@ -2469,9 +2486,40 @@ function AuthGate(){
   return <App/>;
 }
 
+/* ============================ aggiornamenti ============================ */
+// controlla version.json (senza cache) all'avvio, quando l'app torna in primo piano e ogni 5 minuti
+async function versioneOnline(){
+  try{ const r = await fetch("version.json?t=" + Date.now(), {cache:"no-store"}); if (!r.ok) return null; const j = await r.json(); return j && j.version ? String(j.version) : null; }
+  catch(e){ return null; }
+}
+async function aggiornaApp(){
+  try{
+    if ("serviceWorker" in navigator){ const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.update().catch(()=>{}))); }
+    if (window.caches){ const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
+  }catch(e){}
+  location.replace(location.pathname + "?v=" + Date.now());
+}
+function AvvisoAggiornamento(){
+  const [nuova, setNuova] = useState(null);
+  useEffect(() => {
+    let vivo = true;
+    const controlla = async () => { const v = await versioneOnline(); if (vivo && v && v !== APP_VERSION) setNuova(v); };
+    controlla();
+    const t = setInterval(controlla, 5*60*1000);
+    const vis = () => { if (document.visibilityState === "visible") controlla(); };
+    document.addEventListener("visibilitychange", vis);
+    return () => { vivo = false; clearInterval(t); document.removeEventListener("visibilitychange", vis); };
+  }, []);
+  if (!nuova) return null;
+  return <div className="inv-update"><span>È disponibile una nuova versione dell'app</span><button onClick={aggiornaApp}>Aggiorna</button></div>;
+}
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js").catch(e => console.warn("SW", e));
+
 /* ============================ avvio ============================ */
 Store.init();
-ReactDOM.createRoot(document.getElementById("root")).render(<AuthGate/>);
+ReactDOM.createRoot(document.getElementById("root")).render(<><AuthGate/><AvvisoAggiornamento/></>);
+// pulisco il ?v= lasciato dall'aggiornamento
+if (/[?&]v=\d+/.test(location.search)) history.replaceState(null, "", location.pathname + location.hash);
 </script>
 </body>
 </html>
